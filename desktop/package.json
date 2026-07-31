@@ -1,0 +1,94 @@
+{
+  "name": "mdturn-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MDTurn macOS desktop shell for local Markdown review",
+  "main": "main.js",
+  "author": "MDTurn contributors",
+  "license": "MIT",
+  "scripts": {
+    "start": "npm run build:vendor && electron .",
+    "dev": "electron .",
+    "test": "node --test test/*.test.js",
+    "build:vendor": "node scripts/build-vendor.mjs",
+    "dist:app": "npm run build:vendor && electron-builder --mac --arm64 --dir",
+    "dist:dmg": "npm run build:vendor && electron-builder --mac dmg --arm64",
+    "dist:zip": "npm run build:vendor && electron-builder --mac zip --arm64",
+    "dist:beta": "npm run build:vendor && electron-builder --mac --arm64 --dir && electron-builder --mac dmg zip --arm64"
+  },
+  "devDependencies": {
+    "@codemirror/lang-markdown": "6.5.1",
+    "@phosphor-icons/web": "2.1.2",
+    "codemirror": "6.0.2",
+    "electron": "43.1.1",
+    "electron-builder": "26.15.3",
+    "esbuild": "0.28.1"
+  },
+  "build": {
+    "appId": "org.mdturn.desktop",
+    "productName": "MDTurn",
+    "afterPack": "scripts/after-pack.mjs",
+    "asar": true,
+    "npmRebuild": false,
+    "artifactName": "${productName}-${version}-${arch}.${ext}",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "service.js",
+      "package.json"
+    ],
+    "fileAssociations": [
+      {
+        "ext": "md",
+        "name": "Markdown Document",
+        "description": "Markdown 文档",
+        "role": "Viewer"
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "icon": "build/icon.icns",
+      "identity": "-",
+      "hardenedRuntime": false,
+      "notarize": false,
+      "extendInfo": {
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": false,
+          "NSAllowsLocalNetworking": true,
+          "NSExceptionDomains": {
+            "127.0.0.1": {
+              "NSIncludesSubdomains": false,
+              "NSTemporaryExceptionAllowsInsecureHTTPLoads": true,
+              "NSTemporaryExceptionAllowsInsecureHTTPSLoads": false
+            },
+            "localhost": {
+              "NSIncludesSubdomains": false,
+              "NSTemporaryExceptionAllowsInsecureHTTPLoads": true,
+              "NSTemporaryExceptionAllowsInsecureHTTPSLoads": false
+            }
+          }
+        }
+      },
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ]
+    },
+    "dmg": {
+      "sign": false
+    }
+  }
+}

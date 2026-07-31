@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>MDTurn</title>
+  <link rel="stylesheet" href="/static/vendor/highlight-github.min.css">
+  <link rel="stylesheet" href="/static/vendor/katex.min.css">
+  <link rel="stylesheet" href="/static/vendor/phosphor.css">
+  <link rel="stylesheet" href="/static/desktop.css?v=6">
+</head>
+<body>
+  <div id="appShell" class="app-shell">
+    <header class="titlebar drag-region">
+      <div class="brand drag-region" aria-label="MDTurn">
+        <span class="brand-mark"><i class="ph ph-markdown-logo" aria-hidden="true"></i></span>
+        <span class="brand-name">MDTurn</span>
+      </div>
+      <div id="tabList" class="tab-list" role="tablist" aria-label="打开的 Markdown 文档"></div>
+      <button id="openTabButton" class="icon-button" type="button" title="打开 Markdown" aria-label="打开 Markdown">
+        <i class="ph ph-plus" aria-hidden="true"></i>
+      </button>
+      <div class="title-actions">
+        <button id="toggleLeftTop" class="icon-button" type="button" title="显示或收起左栏" aria-label="显示或收起左栏">
+          <i class="ph ph-sidebar-simple" aria-hidden="true"></i>
+        </button>
+        <button id="toggleRightTop" class="icon-button" type="button" title="显示或收起批注" aria-label="显示或收起批注">
+          <i class="ph ph-notepad" aria-hidden="true"></i>
+        </button>
+        <button id="primaryAction" class="primary-button" type="button" hidden>完成本轮审阅</button>
+      </div>
+    </header>
+
+    <aside id="leftSidebar" class="left-sidebar" aria-label="文档导航">
+      <div class="side-switch-row">
+        <button id="collapseLeft" class="icon-button compact" type="button" title="收起左栏" aria-label="收起左栏">
+          <i class="ph ph-caret-double-left" aria-hidden="true"></i>
+        </button>
+        <div class="segmented" role="tablist" aria-label="左栏内容">
+          <button id="outlineModeButton" class="active" type="button" role="tab" aria-selected="true">大纲</button>
+          <button id="filesModeButton" type="button" role="tab" aria-selected="false">文件</button>
+        </div>
+      </div>
+      <nav id="outlinePanel" class="outline-panel" aria-label="文章大纲"></nav>
+      <section id="filesPanel" class="files-panel" hidden>
+        <button id="openFileButton" class="open-file-button" type="button">
+          <i class="ph ph-folder-open" aria-hidden="true"></i>
+          <span>打开 Markdown 文档</span>
+          <kbd>⌘O</kbd>
+        </button>
+        <div class="section-label">最近审阅</div>
+        <div id="recentList" class="recent-list"></div>
+      </section>
+      <button id="expandLeft" class="collapsed-rail-button" type="button" title="展开左栏" aria-label="展开左栏">
+        <i class="ph ph-caret-double-right" aria-hidden="true"></i>
+      </button>
+    </aside>
+
+    <section id="workspace" class="workspace">
+      <div id="documentToolbar" class="document-toolbar" hidden>
+        <div id="reviewStatePill" class="review-state" data-status="reviewing"
+          role="status" aria-live="polite" aria-atomic="true">
+          <i id="reviewStateIcon" class="ph ph-lock-key" aria-hidden="true"></i>
+          <span id="reviewStateText">审阅中 · 原文已锁定</span>
+        </div>
+        <span id="reviewCount" class="review-count">本轮 0 条未处理</span>
+        <span class="toolbar-spacer"></span>
+        <button id="readingModeButton" class="mode-button active" type="button">
+          <i class="ph ph-book-open-text" aria-hidden="true"></i>阅读与批注
+        </button>
+        <button id="editingModeButton" class="mode-button" type="button">
+          <i class="ph ph-pencil-simple-line" aria-hidden="true"></i>编辑
+        </button>
+      </div>
+
+      <main id="readerPane" class="reader-pane">
+        <div id="welcome" class="welcome">
+          <div class="welcome-mark"><i class="ph ph-markdown-logo" aria-hidden="true"></i></div>
+          <h1>打开一篇 Markdown，开始新一轮审阅</h1>
+          <p>阅读时原文自动冻结；你可以直接选中文字批注。需要自己修改时，再进入独立编辑模式。</p>
+          <button id="welcomeOpenButton" class="primary-button large" type="button">
+            <i class="ph ph-folder-open" aria-hidden="true"></i>打开 Markdown
+          </button>
+          <div id="welcomeRecent" class="welcome-recent"></div>
+        </div>
+        <div id="readerScroll" class="reader-scroll" hidden>
+          <article id="documentContent" class="markdown-body"></article>
+        </div>
+        <div id="annotationOverlay" class="annotation-overlay" role="group" aria-label="正文批注标记"></div>
+      </main>
+
+      <section id="editorPane" class="editor-pane" hidden aria-label="Markdown 编辑器">
+        <div class="editor-toolbar">
+          <div>
+            <strong>Markdown 编辑</strong>
+            <span id="editorSaveState" class="save-state">所有更改均已保存</span>
+          </div>
+          <div class="editor-actions">
+            <button id="saveButton" class="secondary-button" type="button">
+              <i class="ph ph-floppy-disk" aria-hidden="true"></i>保存
+              <kbd>⌘S</kbd>
+            </button>
+            <button id="finishManualButton" class="primary-button" type="button" hidden>提交修改</button>
+          </div>
+        </div>
+        <div class="editor-split">
+          <div id="codeEditor" class="code-editor"></div>
+          <div class="preview-column">
+            <div class="preview-label">实时预览</div>
+            <article id="editorPreview" class="markdown-body editor-preview"></article>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <aside id="rightSidebar" class="right-sidebar" aria-label="批注列表">
+      <div class="notes-header">
+        <div>
+          <strong>批注</strong>
+          <span id="notesTotal" class="notes-total">0</span>
+        </div>
+        <button id="collapseRight" class="icon-button compact" type="button" title="收起批注栏" aria-label="收起批注栏">
+          <i class="ph ph-caret-double-right" aria-hidden="true"></i>
+        </button>
+      </div>
+      <div id="notesContent" class="notes-content">
+        <section>
+          <div class="notes-section-heading">
+            <span><span class="status-dot open"></span>本轮未处理</span>
+            <span id="openNotesCount">0</span>
+          </div>
+          <div id="openNotesList" class="notes-list"></div>
+        </section>
+        <details id="historySection" class="history-section">
+          <summary>
+            <span>历史批注</span>
+            <span id="historyNotesCount">0</span>
+          </summary>
+          <div id="historyNotesList" class="notes-list history-list"></div>
+        </details>
+      </div>
+      <button id="expandRight" class="collapsed-rail-button" type="button" title="展开批注栏" aria-label="展开批注栏">
+        <i class="ph ph-caret-double-left" aria-hidden="true"></i>
+      </button>
+    </aside>
+  </div>
+
+  <button id="annotateButton" class="annotate-button" type="button" hidden>
+    <i class="ph ph-chat-circle-dots" aria-hidden="true"></i>批注
+  </button>
+
+  <div id="annotationDialog" class="modal-backdrop" hidden>
+    <section id="annotationDialogPanel" class="annotation-dialog" role="dialog" aria-modal="true"
+      aria-labelledby="annotationDialogTitle">
+      <header id="annotationDialogDragHandle" class="annotation-dialog-header" data-drag-handle>
+        <div>
+          <div class="dialog-kicker">本轮批注</div>
+          <h2 id="annotationDialogTitle">添加批注</h2>
+        </div>
+        <button id="closeAnnotationDialog" class="icon-button dialog-close" type="button" aria-label="关闭">
+          <i class="ph ph-x" aria-hidden="true"></i>
+        </button>
+      </header>
+      <blockquote id="annotationQuote"></blockquote>
+      <label for="annotationText">你的意见</label>
+      <textarea id="annotationText" rows="6" placeholder="这段内容哪里需要修改？希望补充什么？"></textarea>
+      <footer>
+        <button id="cancelAnnotation" class="secondary-button" type="button">取消</button>
+        <button id="saveAnnotation" class="primary-button" type="button">保存批注</button>
+      </footer>
+    </section>
+  </div>
+
+  <div id="confirmDialog" class="modal-backdrop" hidden>
+    <section class="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle">
+      <div class="confirm-icon"><i class="ph ph-check-circle" aria-hidden="true"></i></div>
+      <h2 id="confirmTitle">确认操作</h2>
+      <p id="confirmMessage"></p>
+      <footer>
+        <button id="confirmCancel" class="secondary-button" type="button">取消</button>
+        <button id="confirmAccept" class="primary-button" type="button">确认</button>
+      </footer>
+    </section>
+  </div>
+
+  <div id="toastRegion" class="toast-region" aria-live="polite" aria-atomic="true"></div>
+
+  <script src="/static/vendor/markdown-it.min.js"></script>
+  <script src="/static/vendor/katex.min.js"></script>
+  <script src="/static/vendor/texmath.min.js"></script>
+  <script src="/static/vendor/highlight.min.js"></script>
+  <script src="/static/vendor/mermaid.min.js"></script>
+  <script src="/static/vendor/mdturn-editor.js?v=4"></script>
+  <script src="/static/desktop-anchor.js?v=4"></script>
+  <script src="/static/desktop.js?v=5"></script>
+</body>
+</html>

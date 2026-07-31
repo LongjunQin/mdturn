@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="220" viewBox="0 0 640 220" font-family="-apple-system,PingFang SC,sans-serif">
+  <rect width="640" height="220" fill="#f5f7fa"/>
+  <rect x="40"  y="70" width="150" height="80" rx="10" fill="#cfe3ff" stroke="#0071e3"/>
+  <rect x="245" y="70" width="150" height="80" rx="10" fill="#d8f5e3" stroke="#1aa260"/>
+  <rect x="450" y="70" width="150" height="80" rx="10" fill="#ffe6cc" stroke="#ff9500"/>
+  <text x="115" y="115" text-anchor="middle" font-size="18" fill="#1d1d1f">超导磁体</text>
+  <text x="320" y="115" text-anchor="middle" font-size="18" fill="#1d1d1f">失超探测</text>
+  <text x="525" y="115" text-anchor="middle" font-size="18" fill="#1d1d1f">能量泄放</text>
+  <line x1="190" y1="110" x2="245" y2="110" stroke="#888" stroke-width="2" marker-end="url(#a)"/>
+  <line x1="395" y1="110" x2="450" y2="110" stroke="#888" stroke-width="2" marker-end="url(#a)"/>
+  <defs><marker id="a" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+    <path d="M0,0 L6,3 L0,6 Z" fill="#888"/></marker></defs>
+</svg>

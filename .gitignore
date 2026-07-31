@@ -1,0 +1,14 @@
+desktop/node_modules/
+desktop/dist/
+desktop/.cache/
+desktop/.npm-cache/
+desktop/*.log
+.mdread/
+.DS_Store
+
+# 内部 QA 记录与截图,不进开源仓库
+artifacts/
+design-qa.md
+
+# 审阅批注 sidecar(用户数据,永远不入库)
+*.annotations.json
