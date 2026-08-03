@@ -11,6 +11,10 @@ const {
   ensureService,
   parsePort,
   requestHealth,
+  serverDirectory,
+  startWindowsService,
+  stopOwnedService,
+  windowsDataDirectory,
 } = require('../service');
 
 test('parsePort fails closed for malformed and out-of-range values', () => {
@@ -60,6 +64,7 @@ test('ensureService does not kickstart when a healthy service already exists', a
   context.after(() => fs.rmSync(tempDir, { recursive: true, force: true }));
 
   const service = await ensureService({
+    platform: 'darwin',
     portFiles: [portFile],
     scanDefault: false,
     kickstart: async () => { kickstarts += 1; },
@@ -80,6 +85,7 @@ test('ensureService kickstarts once and then discovers the helper port', async (
   let kickstarts = 0;
 
   const service = await ensureService({
+    platform: 'darwin',
     portFiles: [portFile],
     scanDefault: false,
     readyTimeoutMs: 1_000,
@@ -93,4 +99,92 @@ test('ensureService kickstarts once and then discovers the helper port', async (
 
   assert.equal(service.port, server.address().port);
   assert.equal(kickstarts, 1);
+});
+
+test('packaged Windows paths use resources and the Electron user data directory', () => {
+  const resourcesPath = path.resolve(path.parse(process.cwd()).root, 'app', 'resources');
+  const userDataPath = path.resolve(path.parse(process.cwd()).root, 'Users', 'test', 'AppData', 'MDTurn');
+  assert.equal(
+    serverDirectory({ isPackaged: true, resourcesPath }),
+    path.join(resourcesPath, 'mdturn-server'),
+  );
+  assert.equal(
+    windowsDataDirectory({ userDataDir: userDataPath }),
+    path.join(userDataPath, 'mdread'),
+  );
+});
+
+test('startWindowsService uses Electron as Node with loopback and a dynamic port', (context) => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mdturn-win-spawn-'));
+  fs.writeFileSync(path.join(tempDir, 'server.js'), '// fixture\n');
+  context.after(() => fs.rmSync(tempDir, { recursive: true, force: true }));
+  let invocation = null;
+  const fakeChild = new (require('node:events').EventEmitter)();
+  fakeChild.exitCode = null;
+  fakeChild.killed = false;
+  fakeChild.kill = () => { fakeChild.killed = true; return true; };
+  const started = startWindowsService({
+    serverDir: tempDir,
+    userDataDir: path.join(tempDir, 'user-data'),
+    executablePath: 'MDTurn.exe',
+    spawn: (...args) => { invocation = args; return fakeChild; },
+  });
+  assert.equal(invocation[0], 'MDTurn.exe');
+  assert.deepEqual(invocation[1], [path.join(tempDir, 'server.js')]);
+  assert.equal(invocation[2].env.ELECTRON_RUN_AS_NODE, '1');
+  assert.equal(invocation[2].env.MDREAD_HOST, '127.0.0.1');
+  assert.equal(invocation[2].env.MDREAD_PORT, '0');
+  assert.equal(invocation[2].windowsHide, true);
+  assert.equal(started.portFile, path.join(tempDir, 'user-data', 'mdread', 'port'));
+});
+
+test('stopOwnedService is safe to call repeatedly', () => {
+  let kills = 0;
+  const child = { exitCode: null, killed: false, kill() { kills += 1; this.killed = true; } };
+  assert.equal(stopOwnedService({ ownedProcess: child }), true);
+  assert.equal(stopOwnedService({ ownedProcess: child }), false);
+  assert.equal(kills, 1);
+});
+
+test('Windows startup timeout terminates the owned service', async (context) => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mdturn-win-timeout-'));
+  fs.writeFileSync(path.join(tempDir, 'server.js'), '// fixture\n');
+  context.after(() => fs.rmSync(tempDir, { recursive: true, force: true }));
+  const child = new (require('node:events').EventEmitter)();
+  child.exitCode = null;
+  child.killed = false;
+  child.kill = () => { child.killed = true; return true; };
+
+  await assert.rejects(ensureService({
+    platform: 'win32',
+    serverDir: tempDir,
+    userDataDir: path.join(tempDir, 'user-data'),
+    portFiles: [],
+    scanDefault: false,
+    spawn: () => child,
+    readyTimeoutMs: 20,
+    pollIntervalMs: 5,
+  }), /没有就绪/);
+  assert.equal(child.killed, true);
+});
+
+test('Windows startup reports an owned service that exits early', async (context) => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mdturn-win-exit-'));
+  fs.writeFileSync(path.join(tempDir, 'server.js'), '// fixture\n');
+  context.after(() => fs.rmSync(tempDir, { recursive: true, force: true }));
+  const child = new (require('node:events').EventEmitter)();
+  child.exitCode = 7;
+  child.killed = false;
+  child.kill = () => { child.killed = true; return true; };
+
+  await assert.rejects(ensureService({
+    platform: 'win32',
+    serverDir: tempDir,
+    userDataDir: path.join(tempDir, 'user-data'),
+    portFiles: [],
+    scanDefault: false,
+    spawn: () => child,
+    readyTimeoutMs: 100,
+    pollIntervalMs: 5,
+  }), /提前退出（代码 7）/);
 });

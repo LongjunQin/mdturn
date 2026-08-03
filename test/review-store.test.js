@@ -131,6 +131,8 @@ test('人工解锁在源文件被删除后仍可恢复，私有权限会迁移',
   fs.chmodSync(paths.dataDir, 0o755);
   fs.chmodSync(paths.owner, 0o644);
   store.ensureDataDir(f.options);
-  assert.equal(fs.statSync(paths.dataDir).mode & 0o777, 0o700);
-  assert.equal(fs.statSync(paths.owner).mode & 0o777, 0o600);
+  if (process.platform !== 'win32') {
+    assert.equal(fs.statSync(paths.dataDir).mode & 0o777, 0o700);
+    assert.equal(fs.statSync(paths.owner).mode & 0o777, 0o600);
+  }
 });

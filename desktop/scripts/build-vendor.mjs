@@ -40,6 +40,15 @@ async function buildCodeMirror() {
     sourcemap: false,
     legalComments: 'none',
     logLevel: 'info',
+    plugins: [{
+      name: 'normalize-javascript-newlines',
+      setup(buildContext) {
+        buildContext.onLoad({ filter: /\.js$/ }, async ({ path: sourcePath }) => ({
+          contents: (await readFile(sourcePath, 'utf8')).replace(/\r\n/g, '\n'),
+          loader: 'js',
+        }));
+      },
+    }],
   });
 }
 

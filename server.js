@@ -786,9 +786,15 @@ function banner(port) {
   console.log('  停止: Ctrl + C\n');
 }
 async function publishPort(port) {
-  await store.writePort(port);
   activePort = port;
-  try { ownedPortInode = fs.statSync(PATHS.port).ino; } catch { ownedPortInode = null; }
+  try {
+    await store.writePort(port);
+    try { ownedPortInode = fs.statSync(PATHS.port).ino; } catch { ownedPortInode = null; }
+  } catch (error) {
+    activePort = null;
+    ownedPortInode = null;
+    throw error;
+  }
 }
 function cleanupOwnedPort() {
   if (activePort === null || ownedPortInode === null) return;
