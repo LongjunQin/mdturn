@@ -45,6 +45,7 @@
     leftMode: localStorage.getItem('mdturn.leftMode') === 'files' ? 'files' : 'outline',
     leftCollapsed: localStorage.getItem('mdturn.leftCollapsed') === '1',
     rightCollapsed: localStorage.getItem('mdturn.rightCollapsed') === '1',
+    readerZoom: Math.min(2.2, Math.max(0.6, parseFloat(localStorage.getItem('mdturn.readerZoom')) || 1)),
     selectionFrame: null,
     cachedAnchor: null,
     dialog: null,
@@ -685,6 +686,19 @@
     return false;
   }
 
+  function applyReaderZoom() {
+    nodes.content.style.zoom = state.readerZoom === 1 ? '' : String(state.readerZoom);
+    scheduleMarkerPositions();
+  }
+
+  function setReaderZoom(next) {
+    const zoom = Math.min(2.2, Math.max(0.6, next));
+    if (zoom === state.readerZoom) return;
+    state.readerZoom = zoom;
+    localStorage.setItem('mdturn.readerZoom', String(zoom));
+    applyReaderZoom();
+  }
+
   function handleDesktopCommand(command) {
     if (['open', 'close-tab'].includes(command) && commandBlocked()) return;
     if (command === 'open') {
@@ -699,7 +713,11 @@
     if (command === 'close-tab') {
       const tab = activeTab();
       if (tab) void closeTab(tab.id);
+      return;
     }
+    if (command === 'zoom-in') { setReaderZoom(state.readerZoom * 1.1); return; }
+    if (command === 'zoom-out') { setReaderZoom(state.readerZoom / 1.1); return; }
+    if (command === 'zoom-reset') setReaderZoom(1);
   }
 
   function renderTabs() {
@@ -1856,6 +1874,11 @@
       scheduleOutlineUpdate();
       scheduleMarkerPositions();
     }, { passive: true });
+    nodes.readerPane.addEventListener('wheel', (event) => {
+      if (!event.ctrlKey) return;
+      event.preventDefault();
+      setReaderZoom(state.readerZoom * Math.exp(-event.deltaY * 0.01));
+    }, { passive: false });
     nodes.historySection.addEventListener('toggle', () => {
       if (state.renderingHistory) return;
       const tab = activeTab();
@@ -1913,6 +1936,7 @@
   async function init() {
     installEvents();
     renderLayoutState();
+    applyReaderZoom();
     await refreshRecents();
     await restoreTabs();
     renderApp();
