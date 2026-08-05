@@ -1,6 +1,6 @@
 {
   "name": "mdturn-desktop",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "MDTurn desktop shell for local Markdown review on macOS and Windows",
   "main": "main.js",
