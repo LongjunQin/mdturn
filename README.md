@@ -4,8 +4,8 @@
 
 MDTurn 是一款开源 Markdown 工作台：把阅读与批注放在同一个冻结模式里，
 把原文编辑放在独立模式里，并让人和 AI 都能按同一套批注状态安全闭环。
-桌面版基于 Electron，支持 **macOS** 与 **Windows 11 x64（Beta，社区贡献，
-感谢 [@ArnaudJiang](https://github.com/ArnaudJiang)）**；Windows 说明见
+桌面版基于 Electron，支持 **macOS** 与 **Windows 11 x64（Beta，由
+[@ArnaudJiang](https://github.com/ArnaudJiang) 贡献）**；Windows 说明见
 [docs/windows-porting.md](docs/windows-porting.md)，**欢迎继续贡献 Linux 构建**。
 
 ![MDTurn 桌面界面](docs/images/mdturn-desktop.png)

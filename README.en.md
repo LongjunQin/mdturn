@@ -13,7 +13,8 @@ agents close the loop through the same annotation state machine stored in a side
 ## Highlights
 
 - Multi-tab desktop app (Electron) with outline sidebar and annotation rail,
-  for macOS and Windows 11 x64 (Beta);
+  for macOS and Windows 11 x64 (Beta, contributed by
+  [@ArnaudJiang](https://github.com/ArnaudJiang));
 - Reader zoom: trackpad pinch gesture or Cmd/Ctrl + `=` / `-` / `0`, persisted
   across restarts;
 - Real mouse selections across headings, paragraphs, lists, tables and code blocks;
