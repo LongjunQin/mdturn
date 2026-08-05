@@ -1,0 +1,126 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="600" viewBox="0 0 880 600" font-family="-apple-system, PingFang SC, sans-serif">
+  <defs>
+    <filter id="window-shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#3d4a5a" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+
+  <rect width="880" height="600" rx="20" fill="#f5f7fa"/>
+  <text x="440" y="48" text-anchor="middle" font-size="30" font-weight="700" fill="#1d1d1f">The MDTurn window at a glance</text>
+
+  <!-- Callout: tabs -->
+  <text x="151" y="92" font-size="15" font-weight="700" fill="#0071e3">Multi-document tabs</text>
+  <path d="M310 96 L300 118 L300 137" fill="none" stroke="#0071e3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="300" cy="137" r="4" fill="#0071e3"/>
+
+  <!-- Callout: annotations -->
+  <text x="576" font-size="15" font-weight="700" fill="#1aa260">
+    <tspan x="576" y="82">Annotations — newest open </tspan>
+    <tspan x="576" y="101">on top, collapsible</tspan>
+  </text>
+  <path d="M690 106 L690 181 L670 214" fill="none" stroke="#1aa260" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="670" cy="214" r="4" fill="#1aa260"/>
+
+  <!-- App window -->
+  <g filter="url(#window-shadow)">
+    <rect x="146" y="122" width="588" height="374" rx="14" fill="#ffffff" stroke="#b9c6d4" stroke-width="1.5"/>
+
+    <!-- Tab bar -->
+    <path d="M160 122 H720 Q734 122 734 136 V168 H146 V136 Q146 122 160 122 Z" fill="#e9eef4"/>
+    <circle cx="164" cy="143" r="5" fill="#ff6b5f"/>
+    <circle cx="181" cy="143" r="5" fill="#f6bd4f"/>
+    <circle cx="198" cy="143" r="5" fill="#61c454"/>
+    <rect x="218" y="130" width="141" height="38" rx="8" fill="#ffffff"/>
+    <circle cx="236" cy="149" r="5" fill="#0071e3"/>
+    <text x="248" y="154" font-size="15" font-weight="600" fill="#1d1d1f">Brief.md</text>
+    <rect x="365" y="134" width="137" height="34" rx="8" fill="#dfe6ee"/>
+    <text x="381" y="155" font-size="15" fill="#515154">Research.md</text>
+    <rect x="508" y="134" width="107" height="34" rx="8" fill="#dfe6ee"/>
+    <text x="524" y="155" font-size="15" fill="#515154">README.md</text>
+    <path d="M711 143 L719 151 M719 143 L711 151" stroke="#7b8794" stroke-width="2" stroke-linecap="round"/>
+
+    <!-- Left outline -->
+    <rect x="146" y="168" width="136" height="328" fill="#f8fafc"/>
+    <line x1="282" y1="168" x2="282" y2="496" stroke="#d7e0e9" stroke-width="1.5"/>
+    <text x="162" y="197" font-size="15" font-weight="700" fill="#1d1d1f">OUTLINE</text>
+    <path d="M260 188 L267 195 L260 202" fill="none" stroke="#7b8794" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="154" y="211" width="120" height="34" rx="7" fill="#e7f2ff"/>
+    <rect x="154" y="211" width="4" height="34" rx="2" fill="#0071e3"/>
+    <text x="166" y="233" font-size="15" font-weight="600" fill="#0071e3">Overview</text>
+    <text x="166" y="269" font-size="15" fill="#515154">Goals</text>
+    <text x="176" y="301" font-size="15" fill="#515154">Background</text>
+    <text x="176" y="333" font-size="15" fill="#515154">Method</text>
+    <text x="166" y="365" font-size="15" fill="#515154">Findings</text>
+    <text x="176" y="397" font-size="15" fill="#515154">Key result</text>
+    <text x="166" y="429" font-size="15" fill="#515154">Next steps</text>
+
+    <!-- Center status and document -->
+    <rect x="282" y="168" width="302" height="34" fill="#fff8e8"/>
+    <path d="M300 181 V178 A6 6 0 0 1 312 178 V181" fill="none" stroke="#e8590c" stroke-width="1.8"/>
+    <rect x="298" y="181" width="16" height="12" rx="3" fill="#ffffff" stroke="#e8590c" stroke-width="1.8"/>
+    <text x="323" y="190" font-size="15" font-weight="600" fill="#9b4b12">Reviewing · Original locked</text>
+    <rect x="282" y="202" width="302" height="294" fill="#ffffff"/>
+    <text x="310" y="238" font-size="22" font-weight="700" fill="#1d1d1f">Project brief</text>
+    <rect x="310" y="254" width="222" height="8" rx="4" fill="#dce3eb"/>
+    <rect x="310" y="273" width="244" height="8" rx="4" fill="#dce3eb"/>
+    <rect x="310" y="292" width="205" height="8" rx="4" fill="#dce3eb"/>
+    <rect x="306" y="314" width="245" height="27" rx="5" fill="#fff0c2"/>
+    <text x="310" y="333" font-size="15" fill="#1d1d1f">This sentence needs an example.</text>
+    <path d="M552 315 C552 309 557 305 563 305 C569 305 574 309 574 315 C574 322 563 332 563 332 C563 332 552 322 552 315 Z" fill="#e8590c"/>
+    <circle cx="563" cy="315" r="3" fill="#ffffff"/>
+    <rect x="310" y="357" width="234" height="8" rx="4" fill="#dce3eb"/>
+    <rect x="310" y="376" width="190" height="8" rx="4" fill="#dce3eb"/>
+    <text x="310" y="417" font-size="18" font-weight="700" fill="#1d1d1f">Next steps</text>
+    <rect x="310" y="433" width="242" height="8" rx="4" fill="#dce3eb"/>
+    <rect x="310" y="452" width="218" height="8" rx="4" fill="#dce3eb"/>
+    <rect x="310" y="471" width="169" height="8" rx="4" fill="#dce3eb"/>
+
+    <!-- Right annotations -->
+    <rect x="584" y="168" width="150" height="328" fill="#f8fafc"/>
+    <line x1="584" y1="168" x2="584" y2="496" stroke="#d7e0e9" stroke-width="1.5"/>
+    <text x="594" y="197" font-size="15" font-weight="700" fill="#1d1d1f">ANNOTATIONS</text>
+    <path d="M715 188 L708 195 L715 202" fill="none" stroke="#7b8794" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <rect x="596" y="214" width="126" height="109" rx="10" fill="#ffffff" stroke="#f1a06d" stroke-width="1.5"/>
+    <rect x="606" y="224" width="47" height="23" rx="11.5" fill="#fff0e6"/>
+    <text x="629.5" y="241" text-anchor="middle" font-size="15" font-weight="700" fill="#e8590c">open</text>
+    <text x="606" font-size="15" font-weight="600" fill="#1d1d1f">
+      <tspan x="606" y="268">Add a concrete </tspan>
+      <tspan x="606" y="287">example here.</tspan>
+    </text>
+    <text x="606" y="309" font-size="15" fill="#7b8794">just now</text>
+
+    <rect x="596" y="337" width="126" height="102" rx="10" fill="#ffffff" stroke="#a9d9ba" stroke-width="1.5"/>
+    <rect x="606" y="347" width="72" height="23" rx="11.5" fill="#e5f7eb"/>
+    <text x="642" y="364" text-anchor="middle" font-size="15" font-weight="700" fill="#1aa260">resolved</text>
+    <text x="606" font-size="15" fill="#515154">
+      <tspan x="606" y="391">Define the term </tspan>
+      <tspan x="606" y="410">on first use.</tspan>
+    </text>
+    <path d="M690 407 L695 412 L704 402" fill="none" stroke="#1aa260" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <!-- Callout: outline -->
+  <text x="18" font-size="15" font-weight="700" fill="#0071e3">
+    <tspan x="18" y="234">Outline — click </tspan>
+    <tspan x="18" y="253">to jump, </tspan>
+    <tspan x="18" y="272">collapsible</tspan>
+  </text>
+  <path d="M112 277 L144 277 L188 228" fill="none" stroke="#0071e3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="188" cy="228" r="4" fill="#0071e3"/>
+
+  <!-- Bottom callouts -->
+  <text x="153" font-size="15" font-weight="700" fill="#e8590c">
+    <tspan x="153" y="539">Frozen document body — select text </tspan>
+    <tspan x="153" y="558">to annotate</tspan>
+  </text>
+  <path d="M430 539 L455 510 L455 338" fill="none" stroke="#e8590c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="455" cy="338" r="4" fill="#e8590c"/>
+
+  <text x="536" font-size="15" font-weight="700" fill="#0071e3">
+    <tspan x="536" y="539">Pinch or Cmd +/− </tspan>
+    <tspan x="536" y="558">to zoom text</tspan>
+  </text>
+  <path d="M522 548 L492 510 L492 451" fill="none" stroke="#0071e3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="492" cy="451" r="4" fill="#0071e3"/>
+</svg>

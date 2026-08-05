@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="880" height="540" viewBox="0 0 880 540" font-family="-apple-system, PingFang SC, sans-serif">
   <rect width="880" height="540" rx="20" fill="#f5f7fa"/>
-  <text x="440" y="48" text-anchor="middle" font-size="30" font-weight="700" fill="#1d1d1f">为什么需要 MDTurn？</text>
-  <text x="440" y="77" text-anchor="middle" font-size="16" fill="#515154">同样是让 AI 改稿，结果可以完全不同</text>
+  <text x="440" y="48" text-anchor="middle" font-size="30" font-weight="700" fill="#1d1d1f">Why MDTurn?</text>
+  <text x="440" y="77" text-anchor="middle" font-size="16" fill="#515154">Same AI, completely different outcome</text>
 
   <!-- Left: without MDTurn -->
   <rect x="30" y="104" width="390" height="372" rx="18" fill="#ffffff" stroke="#f1a06d" stroke-width="2"/>
@@ -9,10 +9,10 @@
   <circle cx="68" cy="137" r="18" fill="#e8590c"/>
   <path d="M68 126 V141" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
   <circle cx="68" cy="148" r="2.5" fill="#ffffff"/>
-  <text x="99" y="145" font-size="22" font-weight="700" fill="#e8590c">没有 MDTurn</text>
+  <text x="99" y="145" font-size="22" font-weight="700" fill="#e8590c">Without MDTurn</text>
 
   <path d="M55 190 H258 Q270 190 270 202 V227 Q270 239 258 239 H94 L79 251 V239 H55 Q43 239 43 227 V202 Q43 190 55 190 Z" fill="#fff7f2" stroke="#f1a06d" stroke-width="1.5"/>
-  <text x="156" y="221" text-anchor="middle" font-size="17" font-weight="600" fill="#1d1d1f">“第三段改一下……”</text>
+  <text x="156" y="221" text-anchor="middle" font-size="15" font-weight="600" fill="#1d1d1f">“Fix the third paragraph…”</text>
 
   <!-- Tangled path -->
   <path d="M292 202 C350 184 361 222 326 238 C289 255 303 283 368 270" fill="none" stroke="#e8590c" stroke-width="3" stroke-linecap="round" stroke-dasharray="6 6"/>
@@ -20,22 +20,22 @@
   <circle cx="316" cy="210" r="5" fill="#e8590c"/>
   <circle cx="332" cy="272" r="5" fill="#e8590c"/>
 
-  <g fill="#1d1d1f" font-size="17">
+  <g fill="#1d1d1f" font-size="15">
     <circle cx="61" cy="289" r="12" fill="#fff0e6"/>
     <path d="M56 284 L66 294 M66 284 L56 294" stroke="#e8590c" stroke-width="2.5" stroke-linecap="round"/>
-    <text x="85" y="295">说得太模糊，AI 容易找错位置</text>
+    <text x="85" y="295">Vague instructions — AI edits the wrong spot</text>
 
     <circle cx="61" cy="336" r="12" fill="#fff0e6"/>
     <path d="M56 331 L66 341 M66 331 L56 341" stroke="#e8590c" stroke-width="2.5" stroke-linecap="round"/>
-    <text x="85" y="342">改稿时还在动，内容越改越乱</text>
+    <text x="85" y="342">File keeps changing mid-edit, gets messy</text>
 
     <circle cx="61" cy="383" r="12" fill="#fff0e6"/>
     <path d="M56 378 L66 388 M66 378 L56 388" stroke="#e8590c" stroke-width="2.5" stroke-linecap="round"/>
-    <text x="85" y="389">改了哪些地方，过后说不清楚</text>
+    <text x="85" y="389">No record of what was changed</text>
 
     <circle cx="61" cy="430" r="12" fill="#fff0e6"/>
     <path d="M56 425 L66 435 M66 425 L56 435" stroke="#e8590c" stroke-width="2.5" stroke-linecap="round"/>
-    <text x="85" y="436">一不小心，旧版内容也找不回</text>
+    <text x="85" y="436">Old version can be lost</text>
   </g>
 
   <!-- VS divider -->
@@ -47,7 +47,7 @@
   <path d="M460 122 Q460 104 478 104 H832 Q850 104 850 122 V170 H460 Z" fill="#e5f7eb"/>
   <circle cx="498" cy="137" r="18" fill="#1aa260"/>
   <path d="M489 137 L496 144 L508 130" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="529" y="145" font-size="22" font-weight="700" fill="#1aa260">有 MDTurn</text>
+  <text x="529" y="145" font-size="22" font-weight="700" fill="#1aa260">With MDTurn</text>
 
   <!-- Precise annotation example -->
   <rect x="480" y="190" width="146" height="61" rx="9" fill="#f8fafc" stroke="#b9c6d4" stroke-width="1.5"/>
@@ -56,26 +56,29 @@
   <line x1="575" y1="221" x2="611" y2="221" stroke="#b7b7ba" stroke-width="2.5" stroke-linecap="round"/>
   <line x1="494" y1="237" x2="588" y2="237" stroke="#b7b7ba" stroke-width="2.5" stroke-linecap="round"/>
   <path d="M635 195 H814 Q824 195 824 205 V228 Q824 238 814 238 H678 L665 249 V238 H635 Q625 238 625 228 V205 Q625 195 635 195 Z" fill="#e7f2ff" stroke="#0071e3" stroke-width="1.5"/>
-  <text x="724" y="223" text-anchor="middle" font-size="16" font-weight="600" fill="#0071e3">这一句请写得更直白</text>
+  <text x="724" text-anchor="middle" font-size="15" font-weight="600" fill="#0071e3">
+    <tspan x="724" y="214">Make this sentence </tspan>
+    <tspan x="724" y="231">clearer</tspan>
+  </text>
 
-  <g fill="#1d1d1f" font-size="17">
+  <g fill="#1d1d1f" font-size="15">
     <circle cx="491" cy="289" r="12" fill="#e5f7eb"/>
     <path d="M485 289 L489 293 L497 284" fill="none" stroke="#1aa260" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-    <text x="515" y="295">批注精确到字，不会找错地方</text>
+    <text x="515" y="295">Annotations pinned to the exact words</text>
 
     <circle cx="491" cy="336" r="12" fill="#e5f7eb"/>
     <path d="M485 336 L489 340 L497 331" fill="none" stroke="#1aa260" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-    <text x="515" y="342">审阅时原文锁定，防止误改</text>
+    <text x="515" y="342">Original frozen during review</text>
 
     <circle cx="491" cy="383" r="12" fill="#e5f7eb"/>
     <path d="M485 383 L489 387 L497 378" fill="none" stroke="#1aa260" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-    <text x="515" y="389">每条批注都有清楚的处理记录</text>
+    <text x="515" y="389">Every note has a clear resolution</text>
 
     <circle cx="491" cy="430" r="12" fill="#e5f7eb"/>
     <path d="M485 430 L489 434 L497 425" fill="none" stroke="#1aa260" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-    <text x="515" y="436">AI 照着清单，一条一条改好</text>
+    <text x="515" y="436">AI works through the list, one by one</text>
   </g>
 
   <rect x="151" y="494" width="578" height="30" rx="15" fill="#e7f2ff"/>
-  <text x="440" y="515" text-anchor="middle" font-size="16" font-weight="600" fill="#0071e3">批注有位置 · 原文有保护 · 改稿有记录</text>
+  <text x="440" y="515" text-anchor="middle" font-size="16" font-weight="600" fill="#0071e3">Precise location · Protected original · Full audit trail</text>
 </svg>
