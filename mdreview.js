@@ -199,8 +199,9 @@ function printReview(review) {
 async function commandOpen(args) {
   if (!args.file) throw new ReviewStoreError('BAD_ARGUMENT', usage(), { httpStatus: 400 });
   const service = args.noOpen ? null : await ensureService();
-  const { review, reused } = await openReview(args.file);
+  const { review, reused, recovered } = await openReview(args.file);
   printReview(review);
+  if (recovered) console.log('检测到旧会话冲突且批注已全部处理,已自动结束旧会话。');
   console.log(reused ? '已复用现有审阅会话。' : '已冻结文档并创建审阅会话。');
   if (args.noOpen) return;
 

@@ -60,6 +60,29 @@ test('源文档变化后会话进入 conflict，sidecar 不被写入', async (t)
   assert.deepEqual(fs.readFileSync(store.sidecarFor(file)), sidecarBefore);
 });
 
+test('冲突会话在批注全部处理后自愈：重新打开自动开启新一轮', async (t) => {
+  const f = fixture(t);
+  const file = writeMd(f.root, '自愈.md');
+  const first = await store.openReview(file, f.options);
+  await store.mutateAnnotations(file, (data) => data.annotations.push({ id: 'n1', comment: '改一下', status: 'open' }));
+  await store.submitReview(first.review.id, f.options);
+  // Agent 漏跑 begin-apply 直接改稿 → 冲突
+  fs.appendFileSync(file, '\n已按批注修改\n');
+  await assert.rejects(store.assertReviewUnchanged(first.review.id, f.options), (error) => error.code === 'SOURCE_CONFLICT');
+  // 仍有 open 批注时,重新打开必须维持冲突保护
+  await assert.rejects(store.openReview(file, f.options), (error) => error.code === 'SOURCE_CONFLICT');
+  // 批注全部标记 applied 后,重新打开自动结束旧会话并开启新一轮
+  await store.mutateAnnotations(file, (data) => { data.annotations[0].status = 'applied'; });
+  const reopened = await store.openReview(file, f.options);
+  assert.equal(reopened.reused, false);
+  assert.equal(reopened.recovered, true);
+  assert.notEqual(reopened.review.id, first.review.id);
+  assert.equal(reopened.review.status, 'reviewing');
+  const old = await store.getReviewById(first.review.id, f.options);
+  assert.equal(old.status, 'complete');
+  assert.match(old.autoClosedReason, /自动结束旧会话/);
+});
+
 test('状态机覆盖 approved 与 ready/applying/complete', async (t) => {
   const f = fixture(t);
   const approvedFile = writeMd(f.root, '直接通过.md');
