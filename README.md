@@ -6,9 +6,9 @@ Your agent hands you finished work all day long — project proposals, execution
 
 智能体每天交给你各种成果——项目方案、执行计划、调研报告。在 MDTurn 里,你一次性读完整篇文档,在**每一个字**上精准写下你最专业的意见和改法;然后整批交回智能体,它一次性全部修改完。一轮阅读、一轮批注、一轮修改,效率极高——这才是人与智能体协作该有的样子。
 
-![MDTurn — the bridge between you and your AI agent](docs/images/hero-bridge.svg)
+![MDTurn — the bridge between you and your AI agent](docs/images/hero-bridge.png)
 
-*图:智能体每天交付项目方案、执行计划、调研报告;过去只能在聊天框里模糊地说"第三段改一下"(下方划掉的旧方式),现在 MDTurn 作为桥梁——你的批注精确到字地传过去,改好的稿子一次性传回来。一轮阅读、一轮批注、一轮修改。*
+*图:智能体每天产出方案、计划、报告(上方飘浮的文档);MDTurn 是你和智能体之间的桥梁——你用红笔批注过的文档精确传过去,改好的稿子带着绿色对勾一次性传回来。一轮阅读、一轮批注、一轮修改。*
 
 ## ⬇️ Download · 下载
 
