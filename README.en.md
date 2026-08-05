@@ -1,6 +1,6 @@
 # MDTurn · Local Markdown Reading, Annotation & Editing
 
-[中文文档](README.md) · [Contributing](CONTRIBUTING.md) · [Windows porting guide](docs/windows-porting.md)
+[⬇️ Download](https://github.com/LongjunQin/mdturn/releases/latest) · [中文文档](README.md) · [Contributing](CONTRIBUTING.md) · [Windows porting guide](docs/windows-porting.md)
 
 MDTurn is an open-source Markdown workbench built for human + AI-agent collaboration:
 reading and annotating happen in a **frozen review mode** (the source file is locked and
@@ -39,7 +39,14 @@ The local service listens on `127.0.0.1` only. Review APIs and local-file APIs r
 requests carrying Cloudflare headers, so the public tunnel can only reach explicitly
 shared documents.
 
-## Quick start (macOS)
+## Install (macOS)
+
+Download the Apple Silicon `.dmg` from the
+[latest release](https://github.com/LongjunQin/mdturn/releases/latest).
+The beta is ad-hoc signed: on first launch, right-click the app and choose
+**Open** (or run `xattr -dc /Applications/MDTurn.app`).
+
+Or build from source:
 
 ```bash
 npm --prefix desktop install --cache desktop/.npm-cache
