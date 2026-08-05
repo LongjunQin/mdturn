@@ -4,14 +4,16 @@
 
 MDTurn 是一款开源 Markdown 工作台：把阅读与批注放在同一个冻结模式里，
 把原文编辑放在独立模式里，并让人和 AI 都能按同一套批注状态安全闭环。
-当前桌面版为 macOS（Electron 实现），**欢迎贡献 Windows / Linux 构建**，
-移植入口见 [docs/windows-porting.md](docs/windows-porting.md)。
+桌面版基于 Electron，支持 **macOS** 与 **Windows 11 x64（Beta，社区贡献，
+感谢 [@ArnaudJiang](https://github.com/ArnaudJiang)）**；Windows 说明见
+[docs/windows-porting.md](docs/windows-porting.md)，**欢迎继续贡献 Linux 构建**。
 
 ![MDTurn 桌面界面](docs/images/mdturn-desktop.png)
 
 当前版本支持：
 
 - 同一窗口多文档标签页，左右栏均可收合；
+- 阅读视图正文缩放：触摸板双指捏合，或 Cmd/Ctrl + `=` / `-` / `0`，缩放比例重启后保留；
 - 左栏一级/二级标题大纲和最近审阅文件入口；
 - 标题、段落、列表、表格和代码块的真实鼠标选区，跨自然段精确高亮；
 - 批注新增/修改/删除，可拖动批注框，批注标记贴近选区起点；
@@ -150,12 +152,25 @@ npm --prefix desktop run dist:app
 当前构建使用 ad-hoc 签名，适合本机安装和早期开源试用；正式公开下载前还需要 Apple Developer ID
 签名与 notarization。
 
+生成 Windows 11 x64 安装包（需在 Windows 上构建）：
+
+```powershell
+npm --prefix desktop run dist:win
+```
+
+产物为 `desktop/dist/MDTurn-<版本>-x64.exe`（NSIS 安装器，支持自选目录、快捷方式、
+卸载和 `.md` 文件关联）。目前**尚未提供预构建安装包下载**，需要从源码自行构建；
+Windows Beta 未做代码签名，安装时 SmartScreen 显示"未知发布者"属预期。
+Windows 版覆盖完整的本地审阅闭环，暂不含手机分享、自动更新与 ARM64，
+边界详见 [docs/windows-porting.md](docs/windows-porting.md)。
+
 ## 参与贡献
 
 欢迎 Issue 与 PR，流程与代码约定见 [CONTRIBUTING.md](CONTRIBUTING.md)。
-当前最想要的贡献是 **Windows 版**：桌面壳基于 Electron，主要工作是替换少量
-macOS 特有逻辑与增加 Windows 打包目标，入口清单见
-[docs/windows-porting.md](docs/windows-porting.md)。
+Windows 11 x64 支持由 [@ArnaudJiang](https://github.com/ArnaudJiang) 贡献
+（[PR #1](https://github.com/LongjunQin/mdturn/pull/1)），在此致谢。
+当前最想要的贡献是 **Linux 版**（同一套 Electron 壳，工作量与 Windows 移植类似），
+以及 Windows 侧的代码签名、自动更新与干净环境验证。
 
 ## 开源许可
 

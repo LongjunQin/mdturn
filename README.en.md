@@ -12,7 +12,10 @@ agents close the loop through the same annotation state machine stored in a side
 
 ## Highlights
 
-- Multi-tab desktop app (Electron) with outline sidebar and annotation rail;
+- Multi-tab desktop app (Electron) with outline sidebar and annotation rail,
+  for macOS and Windows 11 x64 (Beta);
+- Reader zoom: trackpad pinch gesture or Cmd/Ctrl + `=` / `-` / `0`, persisted
+  across restarts;
 - Real mouse selections across headings, paragraphs, lists, tables and code blocks;
 - Frozen review sessions with version-conflict interception and SHA-256 verification;
 - A CodeMirror editor mode with live preview, draft recovery and per-annotation triage;
@@ -44,11 +47,26 @@ npm --prefix desktop run dist:app     # build the arm64 .app
 mdreview open "/absolute/path/doc.md" # open a doc for frozen review
 ```
 
-## Windows / Linux
+## Windows
 
-The desktop shell is Electron, so a Windows build is a porting task, not a rewrite —
-mostly replacing the launchd-based service bootstrap and adding an electron-builder
-`win` target. See [docs/windows-porting.md](docs/windows-porting.md). PRs welcome.
+Windows 11 x64 is supported as a Beta, contributed by
+[@ArnaudJiang](https://github.com/ArnaudJiang)
+([PR #1](https://github.com/LongjunQin/mdturn/pull/1)). Build the installer on
+Windows:
+
+```powershell
+npm --prefix desktop run dist:win   # → desktop/dist/MDTurn-<version>-x64.exe
+```
+
+No pre-built installers are published yet — build from source. The Beta is
+unsigned (SmartScreen shows an unknown-publisher warning) and covers the full
+local review workflow; phone sharing, auto-update and ARM64 are out of scope.
+Details: [docs/windows-porting.md](docs/windows-porting.md).
+
+## Linux
+
+The desktop shell is Electron, so a Linux build is a porting task, not a
+rewrite — similar in scope to the Windows port. PRs welcome.
 
 ## License
 

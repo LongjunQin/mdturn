@@ -2,8 +2,10 @@
 
 感谢关注 MDTurn。当前项目最需要的贡献,按优先级:
 
-1. **Windows 桌面版**——入口清单见 [docs/windows-porting.md](docs/windows-porting.md);
-2. Linux 桌面版(同一套 Electron 壳,工作量与 Windows 类似);
+1. **Linux 桌面版**(同一套 Electron 壳,工作量与已完成的 Windows 移植类似);
+2. **Windows 版完善**——代码签名、自动更新、ARM64、干净 VM 安装/卸载验证
+   (Windows 11 x64 Beta 已由 [@ArnaudJiang](https://github.com/ArnaudJiang) 贡献,
+   现状与边界见 [docs/windows-porting.md](docs/windows-porting.md));
 3. Bug 报告与修复、文档改进。
 
 ## 开发环境
