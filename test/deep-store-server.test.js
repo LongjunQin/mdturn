@@ -138,7 +138,13 @@ test('高并发批注 POST 不丢失，同 clientRequestId 只写一条', async 
     { method: 'POST', body: { comment: '重试批注', clientRequestId: 'same-request' } },
   ));
   const responses = await Promise.all([...unique, ...duplicates]);
-  assert.ok(responses.every((response) => response.status === 200));
+  const statusCounts = responses.reduce((counts, response) => {
+    counts[response.status] = (counts[response.status] || 0) + 1;
+    return counts;
+  }, {});
+  const failures = responses.filter((response) => response.status !== 200).map((response) => response.text).slice(0, 3);
+  assert.ok(responses.every((response) => response.status === 200),
+    `响应状态统计: ${JSON.stringify(statusCounts)}; 失败响应: ${JSON.stringify(failures)}`);
   const notes = store.readAnnotations(file).annotations;
   assert.equal(notes.length, 81);
   assert.equal(new Set(notes.map((note) => note.id)).size, 81);
@@ -345,7 +351,14 @@ test('本地与远程附件路由都不得通过 symlink 越出文档目录', as
   const file = writeMd(f.docRoot, '路径.md');
   const outside = path.join(f.root, 'outside.txt');
   fs.writeFileSync(outside, 'TOP-SECRET', 'utf8');
-  fs.symlinkSync(outside, path.join(f.docRoot, 'escape.txt'));
+  let symlinkSupported = true;
+  try {
+    fs.symlinkSync(outside, path.join(f.docRoot, 'escape.txt'));
+  } catch (error) {
+    if (process.platform !== 'win32' || error.code !== 'EPERM') throw error;
+    symlinkSupported = false;
+    t.diagnostic('当前 Windows 环境没有创建 symlink 的权限，仅验证词法越界。');
+  }
   const { review } = await store.openReview(file, { dataDir: f.dataDir });
   await store.atomicWriteJson(store.getPaths({ dataDir: f.dataDir }).registry, {
     links: { link1: { absPath: file, token: 'token1', name: '远程', createdAt: new Date().toISOString(), expiresAt: null } },
@@ -354,12 +367,14 @@ test('本地与远程附件路由都不得通过 symlink 越出文档目录', as
 
   const lexical = await rawRequest(port, `/api/file?r=${review.id}&path=..%2Foutside.txt`);
   assert.equal(lexical.status, 403);
-  const localSymlink = await rawRequest(port, `/api/file?r=${review.id}&path=escape.txt`);
-  assert.equal(localSymlink.status, 403);
-  const remoteSymlink = await rawRequest(port, '/api/file?d=link1&k=token1&path=escape.txt', {
-    headers: { 'cf-connecting-ip': '203.0.113.1' },
-  });
-  assert.equal(remoteSymlink.status, 403);
+  if (symlinkSupported) {
+    const localSymlink = await rawRequest(port, `/api/file?r=${review.id}&path=escape.txt`);
+    assert.equal(localSymlink.status, 403);
+    const remoteSymlink = await rawRequest(port, '/api/file?d=link1&k=token1&path=escape.txt', {
+      headers: { 'cf-connecting-ip': '203.0.113.1' },
+    });
+    assert.equal(remoteSymlink.status, 403);
+  }
 });
 
 test('GET 接口拒绝写方法，空 PATCH body 返回 400 而非 500', async (t) => {

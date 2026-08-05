@@ -149,11 +149,15 @@ test('MDTurn API 手工改稿闭环：旧批注、备份、原子写、幂等与
   assert.equal(firstSave.json.reused, false);
   assert.equal(firstSave.json.revision, 1);
   assert.equal(firstSave.json.backupCreated, true);
-  assert.equal(fs.statSync(file).mode & 0o777, 0o640, '原文档模式必须保留');
+  if (process.platform !== 'win32') {
+    assert.equal(fs.statSync(file).mode & 0o777, 0o640, '原文档模式必须保留');
+  }
   assert.equal(fs.readFileSync(file, 'utf8'), '# 新标题\n旧正文\n');
   assert.equal(backupFiles(f.dataDir).length, 1);
   assert.equal(fs.readFileSync(backupFiles(f.dataDir)[0], 'utf8'), '# 旧标题\n旧正文\n');
-  assert.equal(fs.statSync(backupFiles(f.dataDir)[0]).mode & 0o777, 0o600);
+  if (process.platform !== 'win32') {
+    assert.equal(fs.statSync(backupFiles(f.dataDir)[0]).mode & 0o777, 0o600);
+  }
 
   const replay = await request(f.port, `/api/app/source?r=${ref}`, {
     method: 'PUT',

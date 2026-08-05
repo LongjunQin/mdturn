@@ -1,6 +1,5 @@
 'use strict';
 
-const fs = require('fs');
 const path = require('path');
 const {
   app,
@@ -11,9 +10,12 @@ const {
   Notification: ElectronNotification,
   shell,
 } = require('electron');
-const { ensureService } = require('./service');
+const { markdownPathsFromArguments, normalizeMarkdownPath } = require('./open-files');
+const { ensureService, stopOwnedService } = require('./service');
 
-const PROJECT_DIR = path.resolve(__dirname, '..');
+const PROJECT_DIR = app.isPackaged
+  ? path.join(process.resourcesPath, 'mdturn-server')
+  : path.resolve(__dirname, '..');
 const OPEN_FILES_CHANNEL = 'mdturn:open-files';
 const COMMAND_CHANNEL = 'mdturn:command';
 const ACTIVATE_REVIEW_CHANNEL = 'mdturn:activate-review';
@@ -23,26 +25,10 @@ let serviceOrigin = null;
 let rendererReady = false;
 let pendingOpenFiles = [];
 let connecting = null;
+let activeService = null;
 
 app.setName('MDTurn');
-
-function normalizeMarkdownPath(candidate, workingDirectory = process.cwd()) {
-  if (typeof candidate !== 'string' || candidate.includes('\0')) return null;
-  const absolutePath = path.resolve(workingDirectory, candidate);
-  if (path.extname(absolutePath).toLowerCase() !== '.md') return null;
-  try {
-    const realPath = fs.realpathSync(absolutePath);
-    return fs.statSync(realPath).isFile() ? realPath : null;
-  } catch {
-    return null;
-  }
-}
-
-function markdownPathsFromArguments(args, workingDirectory) {
-  return [...new Set((args || [])
-    .map((candidate) => normalizeMarkdownPath(candidate, workingDirectory))
-    .filter(Boolean))];
-}
+if (process.platform === 'win32') app.setAppUserModelId('org.mdturn.desktop');
 
 function queueOpenFiles(paths) {
   const validPaths = paths
@@ -127,8 +113,8 @@ async function showServiceError(error) {
     p{line-height:1.7;margin:8px 0;color:#515154}.detail{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;
     padding:12px;border-radius:9px;background:#f5f5f7;overflow-wrap:anywhere}.hint{margin-top:18px;color:#6e6e73}
     @media(prefers-color-scheme:dark){body{background:#1c1c1e;color:#f5f5f7}.card{background:#2c2c2e;border-color:#48484a}.detail{background:#1c1c1e}p,.hint{color:#aeaeb2}}
-    </style></head><body><main class="card"><h1>本地服务没有就绪</h1><p>MDTurn 没有另起第二个服务，已尝试唤醒现有的 <strong>com.mdread.serve</strong>。</p>
-    <p class="detail">${message}</p><p class="hint">修复服务后，从“窗口”菜单选择“重新连接本地服务”。</p></main></body></html>`;
+    </style></head><body><main class="card"><h1>本地服务没有就绪</h1><p>MDTurn 无法连接本地审阅服务。</p>
+    <p class="detail">${message}</p><p class="hint">请从“窗口”菜单选择“重新连接本地服务”重试。</p></main></body></html>`;
   await mainWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
 }
 
@@ -140,7 +126,14 @@ async function connectAndLoad() {
       const service = await ensureService({
         projectDir: PROJECT_DIR,
         userDataDir: app.getPath('userData'),
+        isPackaged: app.isPackaged,
+        resourcesPath: process.resourcesPath,
+        executablePath: process.execPath,
       });
+      if (!service.ownedProcess && activeService && activeService.ownedProcess && activeService.port === service.port) {
+        service.ownedProcess = activeService.ownedProcess;
+      }
+      activeService = service;
       serviceOrigin = `http://127.0.0.1:${service.port}`;
       rendererReady = false;
       await mainWindow.loadURL(`${serviceOrigin}/desktop`);
@@ -167,7 +160,7 @@ function installNavigationGuards(window) {
 
 function createWindow() {
   if (mainWindow && !mainWindow.isDestroyed()) return mainWindow;
-  mainWindow = new BrowserWindow({
+  const windowOptions = {
     title: 'MDTurn',
     width: 1440,
     height: 960,
@@ -175,8 +168,6 @@ function createWindow() {
     minHeight: 680,
     show: false,
     backgroundColor: '#f5f5f7',
-    titleBarStyle: 'hiddenInset',
-    trafficLightPosition: { x: 16, y: 18 },
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -186,7 +177,12 @@ function createWindow() {
       webSecurity: true,
       allowRunningInsecureContent: false,
     },
-  });
+  };
+  if (process.platform === 'darwin') {
+    windowOptions.titleBarStyle = 'hiddenInset';
+    windowOptions.trafficLightPosition = { x: 16, y: 18 };
+  }
+  mainWindow = new BrowserWindow(windowOptions);
   installNavigationGuards(mainWindow);
   mainWindow.once('ready-to-show', () => mainWindow && mainWindow.show());
   mainWindow.webContents.on('did-start-loading', () => { rendererReady = false; });
@@ -247,8 +243,9 @@ function installIpc() {
 }
 
 function installMenu() {
-  const template = [
-    {
+  const template = [];
+  if (process.platform === 'darwin') {
+    template.push({
       label: 'MDTurn',
       submenu: [
         { role: 'about' },
@@ -261,8 +258,9 @@ function installMenu() {
         { type: 'separator' },
         { role: 'quit' },
       ],
-    },
-    {
+    });
+  }
+  template.push({
       label: '文件',
       submenu: [
         {
@@ -285,15 +283,13 @@ function installMenu() {
           click: () => { sendRendererCommand('save'); },
         },
       ],
-    },
-    {
+    }, {
       label: '编辑',
       submenu: [
         { role: 'undo' }, { role: 'redo' }, { type: 'separator' },
         { role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'selectAll' },
       ],
-    },
-    {
+    }, {
       label: '显示',
       submenu: [
         { role: 'reload' },
@@ -304,8 +300,7 @@ function installMenu() {
         { label: '重置正文缩放', accelerator: 'CmdOrCtrl+0', click: () => { sendRendererCommand('zoom-reset'); } },
         { type: 'separator' }, { role: 'togglefullscreen' },
       ],
-    },
-    {
+    }, {
       label: '窗口',
       submenu: [
         {
@@ -313,10 +308,13 @@ function installMenu() {
           click: () => { void connectAndLoad(); },
         },
         { type: 'separator' },
-        { role: 'minimize' }, { role: 'zoom' }, { role: 'front' },
+        { role: 'minimize' },
+        ...(process.platform === 'darwin' ? [{ role: 'zoom' }, { role: 'front' }] : [{ role: 'close' }]),
       ],
-    },
-  ];
+    });
+  if (process.platform === 'win32') {
+    template.push({ label: '帮助', submenu: [{ role: 'about' }] });
+  }
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
@@ -346,5 +344,9 @@ if (!hasSingleInstanceLock) {
   });
   app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') app.quit();
+  });
+  app.on('before-quit', () => {
+    stopOwnedService(activeService);
+    activeService = null;
   });
 }

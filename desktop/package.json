@@ -2,7 +2,7 @@
   "name": "mdturn-desktop",
   "version": "0.1.0",
   "private": true,
-  "description": "MDTurn macOS desktop shell for local Markdown review",
+  "description": "MDTurn desktop shell for local Markdown review on macOS and Windows",
   "main": "main.js",
   "author": "MDTurn contributors",
   "license": "MIT",
@@ -14,7 +14,8 @@
     "dist:app": "npm run build:vendor && electron-builder --mac --arm64 --dir",
     "dist:dmg": "npm run build:vendor && electron-builder --mac dmg --arm64",
     "dist:zip": "npm run build:vendor && electron-builder --mac zip --arm64",
-    "dist:beta": "npm run build:vendor && electron-builder --mac --arm64 --dir && electron-builder --mac dmg zip --arm64"
+    "dist:beta": "npm run build:vendor && electron-builder --mac --arm64 --dir && electron-builder --mac dmg zip --arm64",
+    "dist:win": "npm run build:vendor && electron-builder --win nsis --x64"
   },
   "devDependencies": {
     "@codemirror/lang-markdown": "6.5.1",
@@ -36,9 +37,15 @@
     },
     "files": [
       "main.js",
+      "open-files.js",
       "preload.js",
       "service.js",
       "package.json"
+    ],
+    "extraResources": [
+      { "from": "../server.js", "to": "mdturn-server/server.js" },
+      { "from": "../lib", "to": "mdturn-server/lib" },
+      { "from": "../static", "to": "mdturn-server/static" }
     ],
     "fileAssociations": [
       {
@@ -86,6 +93,19 @@
           ]
         }
       ]
+    },
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "MDTurn"
     },
     "dmg": {
       "sign": false
