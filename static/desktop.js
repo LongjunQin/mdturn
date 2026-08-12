@@ -47,6 +47,7 @@
     rightCollapsed: localStorage.getItem('mdturn.rightCollapsed') === '1',
     readerZoom: Math.min(2.2, Math.max(0.6, parseFloat(localStorage.getItem('mdturn.readerZoom')) || 1)),
     selectionFrame: null,
+    nextRoundHintAt: 0,
     cachedAnchor: null,
     dialog: null,
     editorView: null,
@@ -1183,6 +1184,19 @@
     nodes.annotate.style.left = `${left}px`; nodes.annotate.style.top = `${top}px`;
   }
 
+  function maybeHintNextRound(selection) {
+    const tab = activeTab();
+    if (!tab || tab.mode !== 'read') return;
+    if (tab.review.status !== 'complete' && tab.review.status !== 'cancelled') return;
+    if (!selection || selection.isCollapsed || !selection.rangeCount) return;
+    if (nodes.content.dataset.tabId !== tab.id) return;
+    if (!nodes.content.contains(selection.getRangeAt(0).startContainer)) return;
+    const now = Date.now();
+    if (now - (state.nextRoundHintAt || 0) < 6000) return;
+    state.nextRoundHintAt = now;
+    toast('本轮审阅已结束，点右上角「开始新一轮审阅」即可继续批注。');
+  }
+
   function handleSelectionChange() {
     if (state.selectionFrame) cancelAnimationFrame(state.selectionFrame);
     state.selectionFrame = requestAnimationFrame(() => {
@@ -1192,6 +1206,7 @@
       const selection = window.getSelection();
       if (!anchor || !selection || !selection.rangeCount) {
         nodes.annotate.hidden = true;
+        maybeHintNextRound(selection);
         return;
       }
       state.cachedAnchor = anchor;
