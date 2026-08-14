@@ -14,7 +14,7 @@ Your agent hands you finished work all day long — project proposals, execution
 
 **macOS (Apple Silicon)** — click to download, that's it · 点击即可下载:
 
-### [⬇️ Download MDTurn for macOS (.dmg)](https://github.com/LongjunQin/mdturn/releases/download/v0.1.1/MDTurn-0.1.1-arm64.dmg)
+### [⬇️ Download MDTurn for macOS (.dmg)](https://github.com/LongjunQin/mdturn/releases/download/v0.1.2/MDTurn-0.1.2-arm64.dmg)
 
 Open the downloaded `.dmg`, drag **MDTurn** into **Applications**. First launch: right-click the app → **Open** (the beta is not yet notarized by Apple, this is expected).
 
