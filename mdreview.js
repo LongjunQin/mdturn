@@ -22,6 +22,7 @@ function usage() {
     '用法:',
     '  mdreview open <绝对路径.md> [--no-open]',
     '  mdreview status <绝对路径.md> [--json]',
+    '  mdreview wait <绝对路径.md> [--timeout-minutes <n>]  # 阻塞等待用户点击「完成本轮审阅」',
     '  mdreview begin-apply <绝对路径.md>',
     '  mdreview complete <绝对路径.md>',
     '  mdreview unlock <绝对路径.md> --reason "<原因>"',
@@ -34,12 +35,17 @@ function fail(message, exitCode = 1) {
 }
 
 function parseArgs(argv) {
-  const result = { command: argv[0], file: null, json: false, noOpen: false, reason: null };
+  const result = { command: argv[0], file: null, json: false, noOpen: false, reason: null, timeoutMinutes: null };
   for (let index = 1; index < argv.length; index += 1) {
     const value = argv[index];
     if (value === '--json') result.json = true;
     else if (value === '--no-open') result.noOpen = true;
     else if (value === '--reason') result.reason = argv[++index];
+    else if (value === '--timeout-minutes') {
+      const minutes = Number(argv[++index]);
+      if (!Number.isFinite(minutes) || minutes <= 0) throw new ReviewStoreError('BAD_ARGUMENT', '--timeout-minutes 需要一个正数', { httpStatus: 400 });
+      result.timeoutMinutes = minutes;
+    }
     else if (value.startsWith('--')) throw new ReviewStoreError('BAD_ARGUMENT', `未知参数: ${value}`, { httpStatus: 400 });
     else if (!result.file) result.file = value;
     else throw new ReviewStoreError('BAD_ARGUMENT', `多余参数: ${value}`, { httpStatus: 400 });
@@ -203,6 +209,7 @@ async function commandOpen(args) {
   printReview(review);
   if (recovered) console.log('检测到旧会话冲突且批注已全部处理,已自动结束旧会话。');
   console.log(reused ? '已复用现有审阅会话。' : '已冻结文档并创建审阅会话。');
+  console.log(`提示: 智能体可后台运行 mdreview wait "${review.absPath}" 挂起等待,用户点击「完成本轮审阅」后命令自动退出,无需用户回对话通报。`);
   if (args.noOpen) return;
 
   const url = `http://127.0.0.1:${service.port}/r/${encodeURIComponent(review.id)}`;
@@ -247,6 +254,54 @@ async function commandStatus(args) {
   printReview(review);
 }
 
+// 阻塞等待用户在 MDTurn 里点击「完成本轮审阅」。设计给智能体后台挂起使用:
+// 命令退出即代表审阅有了结果,智能体被唤醒后按退出码分流,无需用户回到对话里通报。
+// 退出码: 0=批注已提交(或全文通过) 2=会话被取消/冲突/丢失 3=等待超时
+async function commandWait(args) {
+  if (!args.file) throw new ReviewStoreError('BAD_ARGUMENT', usage(), { httpStatus: 400 });
+  const absPath = path.resolve(args.file);
+  const pollMs = Math.max(300, Number(process.env.MDREAD_WAIT_POLL_MS) || 2000);
+  const deadline = Date.now() + (args.timeoutMinutes || 480) * 60000;
+  const initial = await getReviewByPath(absPath);
+  if (!initial) {
+    throw new ReviewStoreError('NO_ACTIVE_REVIEW', `该文档没有活动审阅会话,请先 mdreview open: ${absPath}`, { httpStatus: 404 });
+  }
+  console.log(`等待用户完成审阅: ${absPath}`);
+  console.log(`会话: ${initial.id}(当前状态 ${initial.status})`);
+  for (;;) {
+    const review = await getReviewByPath(absPath);
+    const status = review ? review.status : 'untracked';
+    if (status === 'ready_to_apply') {
+      printReview(review);
+      console.log('用户已点击「完成本轮审阅」,批注已提交。下一步: 运行 mdreview begin-apply,读取 sidecar 中 status=open 的批注;有歧义先向用户提问,再逐条改稿。');
+      return;
+    }
+    if (status === 'complete') {
+      printReview(review);
+      console.log(review.outcome === 'approved'
+        ? '用户已完成本轮审阅: 全文通过,没有批注,无需改稿。'
+        : '本轮审阅已在别处走完闭环,无需再处理。');
+      return;
+    }
+    if (status === 'applying') {
+      printReview(review);
+      console.log('本轮已进入改稿阶段(begin-apply 已在别处运行),直接处理 sidecar 中 status=open 的批注即可。');
+      return;
+    }
+    if (status !== 'reviewing') {
+      const label = { conflict: '版本冲突', cancelled: '审阅被取消', untracked: '审阅会话丢失' }[status] || `状态异常(${status})`;
+      if (review) printReview(review);
+      fail(`等待结束: ${label}。请运行 mdreview status 查看详情后再决定下一步。`, 2);
+      return;
+    }
+    if (Date.now() >= deadline) {
+      fail(`等待超时(${args.timeoutMinutes || 480} 分钟),用户尚未完成审阅。可再次运行 mdreview wait 继续等待。`, 3);
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, pollMs));
+  }
+}
+
 async function main() {
   let args;
   try { args = parseArgs(process.argv.slice(2)); } catch (error) {
@@ -257,6 +312,7 @@ async function main() {
   try {
     if (args.command === 'open') return await commandOpen(args);
     if (args.command === 'status') return await commandStatus(args);
+    if (args.command === 'wait') return await commandWait(args);
     if (args.command === 'begin-apply') {
       if (!args.file) throw new ReviewStoreError('BAD_ARGUMENT', usage(), { httpStatus: 400 });
       const review = await beginApply(args.file);

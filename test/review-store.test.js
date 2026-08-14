@@ -83,6 +83,26 @@ test('冲突会话在批注全部处理后自愈：重新打开自动开启新�
   assert.match(old.autoClosedReason, /自动结束旧会话/);
 });
 
+test('mdreview wait 在用户提交审阅后退出,无会话时直接报错', async (t) => {
+  const f = fixture(t);
+  const file = writeMd(f.root, '等待.md');
+  const opened = await store.openReview(file, f.options);
+  await store.mutateAnnotations(file, (data) => data.annotations.push({ id: 'w1', comment: '改一下', status: 'open' }));
+  const waiting = runNode(['mdreview.js', 'wait', file, '--timeout-minutes', '1'], {
+    MDREAD_DATA_DIR: f.dataDir,
+    MDREAD_WAIT_POLL_MS: '300',
+  });
+  await new Promise((resolve) => setTimeout(resolve, 700));
+  await store.submitReview(opened.review.id, f.options);
+  const result = await waiting;
+  assert.equal(result.code, 0, result.stderr);
+  assert.match(result.stdout, /批注已提交/);
+
+  const missing = await runNode(['mdreview.js', 'wait', path.join(f.root, '不存在.md')], { MDREAD_DATA_DIR: f.dataDir });
+  assert.notEqual(missing.code, 0);
+  assert.match(missing.stderr, /没有活动审阅会话/);
+});
+
 test('状态机覆盖 approved 与 ready/applying/complete', async (t) => {
   const f = fixture(t);
   const approvedFile = writeMd(f.root, '直接通过.md');

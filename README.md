@@ -77,9 +77,9 @@ When you and an agent write documents together, **you supply the judgment — MD
 
 ## Working with AI agents · 配合智能体使用
 
-MDTurn is built for the "human annotates, AI applies" loop: the agent drives everything through the `mdreview` CLI — open a review, read the notes, mark each one applied — protected by a state machine and version fingerprints the whole way. Full commands and protocol: [Advanced guide](docs/advanced.md).
+MDTurn is built for the "human annotates, AI applies" loop: the agent drives everything through the `mdreview` CLI — open a review, read the notes, mark each one applied — protected by a state machine and version fingerprints the whole way. With `mdreview wait`, the agent even blocks in the background until you click **Finish this review round**, then picks up your notes on its own — you never have to go back to the chat to say "done". Full commands and protocol: [Advanced guide](docs/advanced.md).
 
-MDTurn 为"人批注 + AI 改稿"的闭环而生:智能体全程通过 `mdreview` 命令驱动——打开审阅、读取批注、逐条标记处理结果,状态机与版本指纹全程保护。完整命令与协议见[进阶手册](docs/advanced.md)。
+MDTurn 为"人批注 + AI 改稿"的闭环而生:智能体全程通过 `mdreview` 命令驱动——打开审阅、读取批注、逐条标记处理结果,状态机与版本指纹全程保护。配合 `mdreview wait`,智能体还能在后台一直等到你点击**完成本轮审阅**,然后自动开始处理批注——你不用再回到对话里说一声"我批完了"。完整命令与协议见[进阶手册](docs/advanced.md)。
 
 ## Contributing · 参与贡献
 

@@ -60,6 +60,7 @@ Agent 执行 `mdreview complete` 后会主动通知正在运行的 MDTurn，不�
 
 ```bash
 mdreview status "/绝对路径/方案.md" --json
+mdreview wait "/绝对路径/方案.md" --timeout-minutes 480
 mdreview begin-apply "/绝对路径/方案.md"
 mdreview complete "/绝对路径/方案.md"
 mdreview unlock "/绝对路径/方案.md" --reason "放弃本轮审阅"
@@ -67,12 +68,16 @@ mdreview unlock "/绝对路径/方案.md" --reason "放弃本轮审阅"
 
 ## 按批注改稿（Agent 协议）
 
-本地冻结审阅必须先由用户点击“完成本轮审阅”。Agent 随后：
+本地冻结审阅必须先由用户点击“完成本轮审阅”。推荐 Agent 在 `mdreview open` 之后立即
+后台运行 `mdreview wait`：命令会一直阻塞到用户点击“完成本轮审阅”才退出（退出码
+0=批注已提交或全文通过；2=冲突/取消/会话丢失；3=超时，默认 480 分钟，可
+`--timeout-minutes` 调整）。命令退出即等于用户通报“批注完了”，用户不需要回到对话里
+再说一遍。Agent 随后：
 
-1. 运行 `mdreview status`，确认状态；
-2. `ready_to_apply` 时运行 `mdreview begin-apply`；
-3. 只处理 `status=open` 的批注，以 `quote + headingPath` 定位；
-4. 改完标记 `applied/wontfix`，保留审计字段；
+1. 运行 `mdreview status`，确认状态（用了 wait 且退出码为 0 可跳过）；
+2. 读取 sidecar 中 `status=open` 的批注，对有歧义的先向用户提问确认；
+3. `ready_to_apply` 时运行 `mdreview begin-apply`；
+4. 逐条改稿，以 `quote + headingPath` 定位，标记 `applied/wontfix`，保留审计字段；
 5. 全部 open 清零后运行 `mdreview complete`。
 
 没有审阅会话的旧 sidecar 继续遵守原有 `open → applied/wontfix` 协议。
