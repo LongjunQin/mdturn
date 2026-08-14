@@ -68,6 +68,11 @@ mdreview unlock "/绝对路径/方案.md" --reason "放弃本轮审阅"
 
 ## 按批注改稿（Agent 协议）
 
+`mdreview` 每一步命令的输出末尾都会以 `→` 给出 Agent 下一步该做什么（open 提示挂
+wait、wait 退出提示读批注并 begin-apply、begin-apply 提示标 applied/wontfix 后
+complete）。从未读过本文档的 Agent 只要从 `mdreview open` 进入并照每步输出走，
+即可完整走完 打开 → 等待 → 改稿 → 完成 全流程；下文是完整协议说明。
+
 本地冻结审阅必须先由用户点击“完成本轮审阅”。推荐 Agent 在 `mdreview open` 之后立即
 后台运行 `mdreview wait`：命令会一直阻塞到用户点击“完成本轮审阅”才退出（退出码
 0=批注已提交或全文通过；2=冲突/取消/会话丢失；3=超时，默认 480 分钟，可

@@ -96,11 +96,45 @@ test('mdreview wait 在用户提交审阅后退出,无会话时直接报错', as
   await store.submitReview(opened.review.id, f.options);
   const result = await waiting;
   assert.equal(result.code, 0, result.stderr);
-  assert.match(result.stdout, /批注已提交/);
+  assert.match(result.stdout, /用户已完成批注/);
+  // 输出必须内嵌"代理下一步引导":指向 sidecar 与 begin-apply
+  assert.match(result.stdout, /annotations\.json/);
+  assert.match(result.stdout, /begin-apply/);
 
   const missing = await runNode(['mdreview.js', 'wait', path.join(f.root, '不存在.md')], { MDREAD_DATA_DIR: f.dataDir });
   assert.notEqual(missing.code, 0);
   assert.match(missing.stderr, /没有活动审阅会话/);
+});
+
+test('mdreview 全流程 stdout 内嵌代理下一步引导', async (t) => {
+  const f = fixture(t);
+  const file = writeMd(f.root, '引导.md');
+  const env = { MDREAD_DATA_DIR: f.dataDir };
+
+  const opened = await runNode(['mdreview.js', 'open', file, '--no-open'], env);
+  assert.equal(opened.code, 0, opened.stderr);
+  assert.match(opened.stdout, /Agent 下一步/);
+  assert.match(opened.stdout, /mdreview wait/);
+
+  await store.mutateAnnotations(file, (data) => data.annotations.push({ id: 'g1', comment: '改一下', status: 'open' }));
+  const review = await store.getReviewByPath(file, f.options);
+  await store.submitReview(review.id, f.options);
+
+  const began = await runNode(['mdreview.js', 'begin-apply', file], env);
+  assert.equal(began.code, 0, began.stderr);
+  assert.match(began.stdout, /applied\/wontfix/);
+  assert.match(began.stdout, /mdreview complete/);
+
+  // 仍有 open 批注时 complete 被拒,且 stderr 指明剩余数量与补救动作
+  const rejected = await runNode(['mdreview.js', 'complete', file], env);
+  assert.notEqual(rejected.code, 0);
+  assert.match(rejected.stderr, /仍有 1 条 open 批注/);
+  assert.match(rejected.stderr, /applied\/wontfix/);
+
+  await store.mutateAnnotations(file, (data) => { data.annotations[0].status = 'applied'; });
+  const completed = await runNode(['mdreview.js', 'complete', file], env);
+  assert.equal(completed.code, 0, completed.stderr);
+  assert.match(completed.stdout, /闭环完成/);
 });
 
 test('状态机覆盖 approved 与 ready/applying/complete', async (t) => {

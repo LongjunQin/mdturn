@@ -209,7 +209,7 @@ async function commandOpen(args) {
   printReview(review);
   if (recovered) console.log('检测到旧会话冲突且批注已全部处理,已自动结束旧会话。');
   console.log(reused ? '已复用现有审阅会话。' : '已冻结文档并创建审阅会话。');
-  console.log(`提示: 智能体可后台运行 mdreview wait "${review.absPath}" 挂起等待,用户点击「完成本轮审阅」后命令自动退出,无需用户回对话通报。`);
+  console.log(`→ Agent 下一步: 立即以后台任务挂起 mdreview wait "${review.absPath}",阻塞至用户点击「完成本轮审阅」;用户不会回到对话里通报。审阅期间禁止绕过 mdreview 直接修改该文档。`);
   if (args.noOpen) return;
 
   const url = `http://127.0.0.1:${service.port}/r/${encodeURIComponent(review.id)}`;
@@ -273,7 +273,7 @@ async function commandWait(args) {
     const status = review ? review.status : 'untracked';
     if (status === 'ready_to_apply') {
       printReview(review);
-      console.log('用户已点击「完成本轮审阅」,批注已提交。下一步: 运行 mdreview begin-apply,读取 sidecar 中 status=open 的批注;有歧义先向用户提问,再逐条改稿。');
+      console.log(`→ 用户已完成批注。先读 ${absPath}.annotations.json 中 status=open 的批注(有歧义先向用户逐条确认,一次一个问题);修改源文件前必须先运行 mdreview begin-apply "${absPath}",否则触发版本冲突。`);
       return;
     }
     if (status === 'complete') {
@@ -285,17 +285,17 @@ async function commandWait(args) {
     }
     if (status === 'applying') {
       printReview(review);
-      console.log('本轮已进入改稿阶段(begin-apply 已在别处运行),直接处理 sidecar 中 status=open 的批注即可。');
+      console.log(`→ 本轮已进入改稿阶段(begin-apply 已在别处运行)。处理 ${absPath}.annotations.json 中 status=open 的批注,逐条标 applied/wontfix,全部清零后运行 mdreview complete "${absPath}"。`);
       return;
     }
     if (status !== 'reviewing') {
       const label = { conflict: '版本冲突', cancelled: '审阅被取消', untracked: '审阅会话丢失' }[status] || `状态异常(${status})`;
       if (review) printReview(review);
-      fail(`等待结束: ${label}。请运行 mdreview status 查看详情后再决定下一步。`, 2);
+      fail(`等待异常结束: ${label}。→ 先运行 mdreview status "${absPath}" 查明情况,再决定下一步。`, 2);
       return;
     }
     if (Date.now() >= deadline) {
-      fail(`等待超时(${args.timeoutMinutes || 480} 分钟),用户尚未完成审阅。可再次运行 mdreview wait 继续等待。`, 3);
+      fail(`等待超时(${args.timeoutMinutes || 480} 分钟),用户尚未完成审阅。→ 可再次运行 mdreview wait "${absPath}" 继续等待,或 mdreview status 查看现状。`, 3);
       return;
     }
     await new Promise((resolve) => setTimeout(resolve, pollMs));
@@ -317,6 +317,7 @@ async function main() {
       if (!args.file) throw new ReviewStoreError('BAD_ARGUMENT', usage(), { httpStatus: 400 });
       const review = await beginApply(args.file);
       printReview(review);
+      console.log(`→ 只处理 ${review.absPath}.annotations.json 中 status=open 的批注,用 quote+headingPath 定位改稿,逐条就地标 applied/wontfix(可附 appliedNote 说明改法);全部清零后运行 mdreview complete "${review.absPath}"。`);
       await notifyReviewChangedBestEffort(review, 'agent-apply-started');
       return;
     }
@@ -327,6 +328,7 @@ async function main() {
       // delivery failure into a failed completion command.
       const review = await completeReview(args.file);
       printReview(review);
+      console.log('→ 闭环完成: 批注已全部处理,MDTurn 会自动加载最新版并通知用户;本轮无需再做任何 mdreview 操作。');
       await notifyReviewChangedBestEffort(review, 'agent-complete');
       return;
     }
@@ -342,6 +344,9 @@ async function main() {
   } catch (error) {
     const suffix = error.code ? ` [${error.code}]` : '';
     fail(`${error.message}${suffix}`);
+    if (error.code === 'OPEN_ANNOTATIONS' && args.file) {
+      console.error(`→ 回到 ${path.resolve(args.file)}.annotations.json 把剩余 open 批注逐条标为 applied/wontfix,再运行 mdreview complete。`);
+    }
     if (error.details && process.env.MDREAD_DEBUG) console.error(JSON.stringify(error.details, null, 2));
   }
 }
