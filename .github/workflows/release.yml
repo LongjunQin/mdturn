@@ -1,0 +1,75 @@
+name: Release
+
+# 打 v* 标签自动构建 macOS DMG 与 Windows NSIS 安装包并挂到 Release;
+# 也可在 Actions 页面手动触发(workflow_dispatch)做构建演练。
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: 测试 (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: 安装桌面壳依赖并构建 vendor
+        run: |
+          npm --prefix desktop ci
+          npm --prefix desktop run build:vendor
+      - name: 服务与存储层测试
+        run: node --test --test-timeout=120000 test/
+      - name: 桌面壳测试
+        run: node --test --test-timeout=120000 desktop/test/
+      - name: 语法检查
+        run: |
+          node --check server.js
+          node --check mdreview.js
+
+  build:
+    name: 打包 (${{ matrix.os }})
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            script: dist:dmg
+            artifact: MDTurn-mac
+            files: |
+              desktop/dist/*.dmg
+              desktop/dist/*.dmg.blockmap
+          - os: windows-latest
+            script: dist:win
+            artifact: MDTurn-win
+            files: |
+              desktop/dist/*.exe
+              desktop/dist/*.exe.blockmap
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: 安装桌面壳依赖
+        run: npm --prefix desktop ci
+      - name: 构建安装包
+        run: npm --prefix desktop run ${{ matrix.script }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.files }}
+          if-no-files-found: error
+      - name: 挂到 Release(仅 tag 触发)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ matrix.files }}
+          draft: true

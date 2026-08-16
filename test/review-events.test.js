@@ -224,10 +224,10 @@ test('SSE/notify 仅限本机，通知必须重读磁盘真实状态', async (t)
   const file = writeMd(f.docRoot, '真实状态.md');
   const opened = await store.openReview(file, { dataDir: f.dataDir });
 
-  const cf = { 'cf-connecting-ip': '203.0.113.8', 'cf-ray': 'unit-test' };
-  assert.equal((await request(f.port, '/api/app/events', { headers: cf })).status, 404);
+  const crossSite = { Origin: 'https://example.invalid', 'sec-fetch-site': 'cross-site' };
+  assert.equal((await request(f.port, '/api/app/events', { headers: crossSite })).status, 404);
   assert.equal((await request(f.port, '/api/app/review/notify', {
-    method: 'POST', headers: cf, body: { reviewSessionId: opened.review.id, reason: 'forged' },
+    method: 'POST', headers: crossSite, body: { reviewSessionId: opened.review.id, reason: 'forged' },
   })).status, 404);
 
   const sse = await connectSse(f.port);

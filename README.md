@@ -14,15 +14,15 @@ Your agent hands you finished work all day long — project proposals, execution
 
 **macOS (Apple Silicon)** — click to download, that's it · 点击即可下载:
 
-### [⬇️ Download MDTurn for macOS (.dmg)](https://github.com/LongjunQin/mdturn/releases/download/v0.1.3/MDTurn-0.1.3-arm64.dmg)
+### [⬇️ Download MDTurn for macOS (.dmg)](https://github.com/LongjunQin/mdturn/releases/download/v0.2.0/MDTurn-0.2.0-arm64.dmg)
 
 Open the downloaded `.dmg`, drag **MDTurn** into **Applications**. First launch: right-click the app → **Open** (the beta is not yet notarized by Apple, this is expected).
 
 下载后打开 `.dmg`,把 **MDTurn** 拖进**应用程序**。首次启动请**右键 → 打开**(Beta 版尚未做 Apple 公证,提示"未验证开发者"属正常现象)。
 
-**Windows 11 x64 (Beta)** — the installer is on its way; watch the [Releases page](https://github.com/LongjunQin/mdturn/releases). Windows support was contributed by [@ArnaudJiang](https://github.com/ArnaudJiang).
+**Windows 11 x64 (Beta)** — [⬇️ Download the installer (.exe)](https://github.com/LongjunQin/mdturn/releases/download/v0.2.0/MDTurn-0.2.0-x64.exe). Unsigned beta: SmartScreen will warn about an unknown publisher — click "More info → Run anyway". Windows support was contributed by [@ArnaudJiang](https://github.com/ArnaudJiang).
 
-**Windows 11 x64(Beta)**——安装包即将挂出,请关注 [Releases 页面](https://github.com/LongjunQin/mdturn/releases);此前也可[从源码构建](docs/advanced.md)。Windows 支持由 [@ArnaudJiang](https://github.com/ArnaudJiang) 贡献。
+**Windows 11 x64(Beta)**——[⬇️ 下载安装包 (.exe)](https://github.com/LongjunQin/mdturn/releases/download/v0.2.0/MDTurn-0.2.0-x64.exe)。Beta 未做代码签名,SmartScreen 提示"未知发布者"属正常,点"仍要运行"即可。Windows 支持由 [@ArnaudJiang](https://github.com/ArnaudJiang) 贡献。
 
 ## What is MDTurn · MDTurn 是什么
 
@@ -73,7 +73,6 @@ When you and an agent write documents together, **you supply the judgment — MD
 - A separate edit mode (CodeMirror) with live preview, draft recovery, and note-by-note triage. · 独立编辑模式(CodeMirror):实时预览、草稿恢复、逐条处理批注。
 - Version-conflict interception with SHA-256 verification — if the file changes mid-review, writing stops immediately. · 版本冲突拦截与 SHA-256 校验:审阅期间源文件一旦变化,立即停止写入。
 - System notification when the agent finishes while the app is in the background. · 智能体改稿完成时,App 在后台也会收到系统通知。
-- A bonus phone channel: `mdshare` sends a document to any phone via a Cloudflare link. · 附赠手机通道:`mdshare` 生成 Cloudflare 链接,把文档发到任何手机上批注。
 
 ## Working with AI agents · 配合智能体使用
 

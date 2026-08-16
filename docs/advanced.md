@@ -4,17 +4,12 @@
 
 ## 架构与入口
 
-`md-read` 是 MDTurn 复用的本地审阅服务与 CLI。两条入口共用同一个
+`md-read` 是 MDTurn 复用的本地审阅服务与 CLI。批注保存在文档旁的
 `<文档.md>.annotations.json`：
 
 ```text
-电脑本地：Codex 生成 MD → mdreview open → MDTurn（未安装时回退浏览器）→ 冻结审阅 → Codex 应用批注
-手机远程：Codex 生成 MD → mdshare → Cloudflare 链接 → 手机批注 → Codex 应用批注
+Agent 生成 MD → mdreview open → MDTurn 冻结审阅 → Agent 应用批注 → mdreview complete → MDTurn 自动刷新
 ```
-
-Codex 调用约定：明确说“电脑打开 / 本地审阅”时使用 `mdreview open`；明确说“发我手机 /
-给别人看 / 生成分享链接”时使用 `mdshare`；只说“发我看 / 我要批注”而没有说明终端时，
-必须先确认电脑本地还是手机远程。
 
 ## 电脑本地审阅
 
@@ -22,10 +17,9 @@ Codex 调用约定：明确说“电脑打开 / 本地审阅”时使用 `mdrevi
 mdreview open "/绝对路径/方案.md"
 ```
 
-`mdreview open` 会创建或复用该文件的审阅会话、记录 SHA-256 版本指纹，并优先把文档打开到已安装的 MDTurn。未安装 MDTurn 时会自动回退到原有本机浏览器审阅页；两种方式都不经过公网，其他项目可以继续工作。`--no-open` 仍只创建或复用会话，不打开 App 或浏览器。
+`mdreview open` 会创建或复用该文件的审阅会话、记录 SHA-256 版本指纹，并把文档打开到已安装的 MDTurn。未安装 MDTurn 时命令会报错并给出安装指引（会话仍已创建，安装后重跑即可）。`--no-open` 只创建或复用会话，不唤起 App。
 
-MDTurn 内部仍使用 loopback HTTP 与现有服务通信；`/desktop`、审阅接口和本地文件接口都会
-拒绝 Cloudflare 请求头，不能通过公网 Tunnel 进入。
+服务由 MDTurn 启动时自动拉起、退出时带走，只监听 `127.0.0.1` loopback，不经过任何公网。
 
 页面始终在正文上方显示当前状态：
 
@@ -42,7 +36,7 @@ Agent 修改中 · 文档暂时只读  Agent 正在改稿，完成后自动刷�
 `applying` 会根据 `applyMode` 在界面上分成“Agent 修改中”和“手工修改中”。
 `conflict` 是版本冲突停写，`cancelled` 是人工取消本轮。
 
-源文档在 `reviewing` 期间发生变化时，会话立即进入 `conflict`，旧版本批注不再写入。关闭浏览器不会自动解锁。
+源文档在 `reviewing` 期间发生变化时，会话立即进入 `conflict`，旧版本批注不再写入。关闭窗口或标签不会自动解锁。
 
 冲突会话可以自愈：再次 `mdreview open` 时，若旧一轮批注已全部处理（没有 `open`），
 会自动结束冲突会话并按当前内容开启新一轮——典型场景是 Agent 改完了稿但漏跑
@@ -87,32 +81,22 @@ complete）。从未读过本文档的 Agent 只要从 `mdreview open` 进入并
 
 没有审阅会话的旧 sidecar 继续遵守原有 `open → applied/wontfix` 协议。
 
-## 手机远程审阅
+## 内置服务
 
-```bash
-mdshare "/绝对路径/方案.md"
-mdshare "/绝对路径/方案.md" --for 小王 --days 3
-```
+本地服务由 MDTurn 桌面壳用 Electron 自带的 Node 运行时拉起（`ELECTRON_RUN_AS_NODE`），
+macOS 与 Windows 走同一条路径：App 启动时先探测健康服务并复用，否则自己拉起并持有生命周期，
+退出时一并结束。开发时也可手工 `node server.js` 启动，App 会直接复用它。
 
-命令最后一行是可直接发送的链接。每条记录有独立 ID/token，可设置有效期；批注仍写回源文件旁的 sidecar。
-
-远程入口目前使用 Cloudflare Quick Tunnel。Tunnel 重连会更换域名，因此完整旧链接可能失效；页面会提示重新生成链接。固定公网域名不属于本版本。
-
-## 常驻服务
-
-本机通过 launchd 的 `com.mdread.serve` 自动运行 `serve-daemon.sh`，启动 Node 服务并维护 Cloudflare Tunnel。`serve.command` 是手工备用启动器。
-
-服务默认只监听 `127.0.0.1`，不提供本地目录浏览；Cloudflare 只能访问带有效 `d/k` 的分享文档。实际端口写入 `.mdread/port`，CLI 不再写死 8080。
+服务只监听 `127.0.0.1`，不提供本地目录浏览。实际端口写入 `~/.mdread/port`，CLI 不写死 8080。
 
 ## 数据与可靠性
 
-- `.mdread/registry.json`：远程分享记录。
-- `.mdread/reviews.json`：本地审阅会话与冻结状态。
-- `.mdread/port`：当前本地服务端口。
+- `~/.mdread/reviews.json`：本地审阅会话与冻结状态（CLI、App 与 Agent 共享；`MDREAD_DATA_DIR` 可覆盖）。
+- `~/.mdread/port`：当前本地服务端口。
 - `<文档.md>.annotations.json`：批注正文，兼容旧格式。
 - 批注修改会保留原创建记录，并追加 `updatedAt / updatedBy / editCount` 审计字段。
 - JSON 写入采用跨进程锁、锁内重读、临时文件和原子替换；已有 JSON 损坏时停止写入，不会按空数据覆盖。
-- `.mdread` 权限为 `0700`，其中凭证和索引文件为 `0600`。
+- `.mdread` 权限为 `0700`，其中索引文件为 `0600`。
 - 未保存的 MDTurn 编辑草稿按 `reviewSessionId + sourceHash` 保存在 App 本地存储中；刷新或异常重开时只恢复匹配版本的草稿。
 
 ## 开发、验证与打包
@@ -132,7 +116,6 @@ node test/desktop-production-smoke.js
 MDTURN_SMOKE_WIDTH=980 node test/desktop-production-smoke.js
 npm --prefix desktop test
 node --check server.js
-node --check mdshare.js
 node --check mdreview.js
 ```
 
@@ -145,13 +128,17 @@ npm --prefix desktop run dist:app
 当前构建使用 ad-hoc 签名，适合本机安装和早期开源试用；正式公开下载前还需要 Apple Developer ID
 签名与 notarization。
 
-生成 Windows 11 x64 安装包（需在 Windows 上构建）：
+生成 Windows 11 x64 安装包（无原生依赖、不签名，因此在 macOS 上也能直接交叉构建）：
 
-```powershell
+```bash
 npm --prefix desktop run dist:win
 ```
 
+正式发布走 GitHub Actions：推送 `v*` 标签后，CI 会在真实 macOS 与 Windows 机器上
+跑完整测试并构建 `.dmg` 与 `.exe`，以草稿 Release 形式挂出，人工确认后发布
+（见 `.github/workflows/release.yml`）。
+
 产物为 `desktop/dist/MDTurn-<版本>-x64.exe`（NSIS 安装器，支持自选目录、快捷方式、
 卸载和 `.md` 文件关联）。Windows Beta 未做代码签名，安装时 SmartScreen 显示“未知发布者”
-属预期。Windows 版覆盖完整的本地审阅闭环，暂不含手机分享、自动更新与 ARM64，
+属预期。Windows 版覆盖完整的本地审阅闭环，暂不含自动更新与 ARM64，
 边界详见 [windows-porting.md](windows-porting.md)。

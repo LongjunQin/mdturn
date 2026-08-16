@@ -38,5 +38,4 @@ npm --prefix desktop run dist:win
 
 ## 首版边界
 
-Windows Beta 只覆盖本地审阅闭环，不移植 `serve.command`、`serve-daemon.sh`、Cloudflare Tunnel
-或手机分享；也不包含便携版、ARM64、自动更新、代码签名和发布 CI。
+Windows Beta 覆盖本地审阅闭环；不包含便携版、ARM64、自动更新、代码签名和发布 CI。

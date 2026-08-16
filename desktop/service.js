@@ -2,16 +2,14 @@
 
 const fs = require('fs');
 const http = require('http');
+const os = require('os');
 const path = require('path');
-const { execFile, spawn } = require('child_process');
-const { promisify } = require('util');
+const { spawn } = require('child_process');
 
-const execFileAsync = promisify(execFile);
 const DEFAULT_PORT = 8080;
 const PORT_SCAN_COUNT = 11;
 const HEALTH_TIMEOUT_MS = 700;
 const READY_TIMEOUT_MS = 12_000;
-const LAUNCH_AGENT = 'com.mdread.serve';
 
 function serverDirectory(options = {}) {
   if (options.serverDir) return path.resolve(options.serverDir);
@@ -19,8 +17,10 @@ function serverDirectory(options = {}) {
   return path.resolve(__dirname, '..');
 }
 
-function windowsDataDirectory(options = {}) {
-  return path.join(path.resolve(options.userDataDir), 'mdread');
+// 必须与 lib/review-store.js 的默认数据目录一致,CLI 与 App 才能共享会话。
+function ownedDataDirectory(options = {}) {
+  const override = options.dataDir || process.env.MDREAD_DATA_DIR;
+  return path.resolve(override || path.join(os.homedir(), '.mdread'));
 }
 
 function parsePort(value) {
@@ -44,13 +44,8 @@ function unique(values) {
 }
 
 function portFiles(options = {}) {
-  const projectDir = options.projectDir || null;
-  const userDataDir = options.userDataDir || null;
   return unique([
-    process.env.MDREAD_DATA_DIR ? path.join(process.env.MDREAD_DATA_DIR, 'port') : null,
-    process.env.MDREAD_PROJECT_DIR ? path.join(process.env.MDREAD_PROJECT_DIR, '.mdread', 'port') : null,
-    projectDir ? path.join(projectDir, '.mdread', 'port') : null,
-    userDataDir ? path.join(userDataDir, 'mdread', 'port') : null,
+    path.join(ownedDataDirectory(options), 'port'),
   ]);
 }
 
@@ -101,31 +96,13 @@ async function findHealthyService(options = {}) {
   return results.find(Boolean) || null;
 }
 
-async function kickstartService() {
-  if (process.platform !== 'darwin' || typeof process.getuid !== 'function') {
-    throw new Error(`${LAUNCH_AGENT} 只能由 macOS launchd 启动。`);
-  }
-  const target = `gui/${process.getuid()}/${LAUNCH_AGENT}`;
-  try {
-    await execFileAsync('/bin/launchctl', ['kickstart', '-k', target], {
-      timeout: 5_000,
-      windowsHide: true,
-      maxBuffer: 64 * 1024,
-    });
-  } catch (error) {
-    const detail = String(error.stderr || error.message || '').trim();
-    throw new Error(`无法启动 ${LAUNCH_AGENT}${detail ? `：${detail}` : ''}`);
-  }
-}
-
-function startWindowsService(options = {}) {
+function startOwnedService(options = {}) {
   const directory = serverDirectory(options);
   const serverPath = path.join(directory, 'server.js');
   if (!fs.existsSync(serverPath)) {
     throw new Error(`内置服务文件不存在: ${serverPath}`);
   }
-  if (!options.userDataDir) throw new Error('Windows 内置服务缺少 userDataDir。');
-  const dataDir = windowsDataDirectory(options);
+  const dataDir = ownedDataDirectory(options);
   fs.mkdirSync(dataDir, { recursive: true });
   const spawnProcess = options.spawn || spawn;
   const executablePath = options.executablePath || process.execPath;
@@ -162,21 +139,13 @@ async function ensureService(options = {}) {
   let service = await findHealthyService(options);
   if (service) return service;
 
-  const platform = options.platform || process.platform;
-  let ownedProcess = null;
-  let discoveryOptions = options;
-  if (platform === 'win32') {
-    const started = startWindowsService(options);
-    ownedProcess = started.child;
-    discoveryOptions = {
-      ...options,
-      portFiles: [started.portFile],
-      scanDefault: false,
-    };
-  } else {
-    // macOS 桌面壳继续只唤醒已经安装的 launchd helper。
-    await (options.kickstart || kickstartService)();
-  }
+  const started = (options.startService || startOwnedService)(options);
+  const ownedProcess = started.child;
+  const discoveryOptions = {
+    ...options,
+    portFiles: [started.portFile],
+    scanDefault: false,
+  };
 
   const readyTimeoutMs = options.readyTimeoutMs || READY_TIMEOUT_MS;
   const deadline = Date.now() + readyTimeoutMs;
@@ -193,22 +162,19 @@ async function ensureService(options = {}) {
   }
   if (ownedProcess) stopOwnedService({ ownedProcess });
   const seconds = Math.round(readyTimeoutMs / 100) / 10;
-  throw new Error(platform === 'win32'
-    ? `MDTurn 内置服务在 ${seconds} 秒内没有就绪。`
-    : `已唤醒 ${LAUNCH_AGENT}，但本地服务在 ${seconds} 秒内没有就绪。`);
+  throw new Error(`MDTurn 内置服务在 ${seconds} 秒内没有就绪。`);
 }
 
 module.exports = {
   DEFAULT_PORT,
-  LAUNCH_AGENT,
   candidatePorts,
   ensureService,
   findHealthyService,
+  ownedDataDirectory,
   parsePort,
   portFiles,
   requestHealth,
   serverDirectory,
-  startWindowsService,
+  startOwnedService,
   stopOwnedService,
-  windowsDataDirectory,
 };

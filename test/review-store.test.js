@@ -160,7 +160,7 @@ test('状态机覆盖 approved 与 ready/applying/complete', async (t) => {
   assert.match(completed.finalHash, /^[a-f0-9]{64}$/);
 });
 
-test('损坏 sidecar 与 registry 都会拒绝覆盖', async (t) => {
+test('损坏 sidecar 会拒绝覆盖', async (t) => {
   const f = fixture(t);
   const file = writeMd(f.root, '损坏保护.md');
   const sidecar = store.sidecarFor(file);
@@ -168,17 +168,9 @@ test('损坏 sidecar 与 registry 都会拒绝覆盖', async (t) => {
   const before = fs.readFileSync(sidecar);
   await assert.rejects(store.mutateAnnotations(file, () => {}), (error) => error.code === 'MALFORMED_JSON');
   assert.deepEqual(fs.readFileSync(sidecar), before);
-
-  store.ensureDataDir(f.options);
-  const registry = store.getPaths(f.options).registry;
-  fs.writeFileSync(registry, '{broken', 'utf8');
-  const registryBefore = fs.readFileSync(registry);
-  const result = await runNode(['mdshare.js', file], { MDREAD_DATA_DIR: f.dataDir });
-  assert.notEqual(result.code, 0);
-  assert.deepEqual(fs.readFileSync(registry), registryBefore);
 });
 
-test('多进程 mdreview open 与 mdshare 不丢记录', async (t) => {
+test('多进程 mdreview open 不丢记录', async (t) => {
   const f = fixture(t);
   const files = Array.from({ length: 8 }, (_, index) => writeMd(f.root, `并发/文档 ${index}.md`));
   const reviewRuns = await Promise.all(files.map((file) => runNode(['mdreview.js', 'open', file, '--no-open'], {
@@ -186,13 +178,6 @@ test('多进程 mdreview open 与 mdshare 不丢记录', async (t) => {
   })));
   assert.ok(reviewRuns.every((result) => result.code === 0), reviewRuns.map((result) => result.stderr).join('\n'));
   assert.equal((await store.listReviews(f.options)).length, files.length);
-
-  const shareRuns = await Promise.all(files.map((file, index) => runNode(['mdshare.js', file, '--for', `用户${index}`], {
-    MDREAD_DATA_DIR: f.dataDir,
-  })));
-  assert.ok(shareRuns.every((result) => result.code === 0), shareRuns.map((result) => result.stderr).join('\n'));
-  const registry = store.readJsonStrict(store.getPaths(f.options).registry);
-  assert.equal(Object.keys(registry.links).length, files.length);
 });
 
 test('人工解锁在源文件被删除后仍可恢复，私有权限会迁移', async (t) => {
@@ -204,12 +189,11 @@ test('人工解锁在源文件被删除后仍可恢复，私有权限会迁移',
   assert.equal(cancelled.status, 'cancelled');
 
   const paths = store.getPaths(f.options);
-  fs.writeFileSync(paths.owner, '我');
   fs.chmodSync(paths.dataDir, 0o755);
-  fs.chmodSync(paths.owner, 0o644);
+  fs.chmodSync(paths.reviews, 0o644);
   store.ensureDataDir(f.options);
   if (process.platform !== 'win32') {
     assert.equal(fs.statSync(paths.dataDir).mode & 0o777, 0o700);
-    assert.equal(fs.statSync(paths.owner).mode & 0o777, 0o600);
+    assert.equal(fs.statSync(paths.reviews).mode & 0o777, 0o600);
   }
 });

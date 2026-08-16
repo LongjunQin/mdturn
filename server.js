@@ -1,10 +1,9 @@
 #!/usr/bin/env node
 'use strict';
 /*
- * md-read —— 本机冻结审阅 + 公网单文档分享服务。
+ * md-read —— MDTurn 的本机冻结审阅服务。
  *
- * 本机审阅: /r/<reviewId>（只允许 loopback 且拒绝 Cloudflare 请求）
- * 公网分享: /d/<linkId>?k=<token>
+ * 只监听 loopback:桌面壳加载 /desktop,CLI 与 App 通过 /api/* 协作。
  */
 const http = require('http');
 const fs = require('fs');
@@ -29,7 +28,6 @@ if (PORT_BASE === null) {
 const HOST = process.env.MDREAD_HOST || '127.0.0.1';
 const STATIC_DIR = path.join(__dirname, 'static');
 const PATHS = store.getPaths();
-const REG_FILE = PATHS.registry;
 const EVENT_HEARTBEAT_MS = (() => {
   const value = Number(process.env.MDREAD_EVENT_HEARTBEAT_MS);
   return Number.isFinite(value) && value > 0 ? Math.trunc(value) : undefined;
@@ -64,31 +62,6 @@ function safeJoin(base, rel) {
     return target;
   }
 }
-
-function loadReg() {
-  const data = store.readJsonStrict(REG_FILE, { links: {} });
-  if (!data || typeof data !== 'object' || Array.isArray(data) ||
-      !data.links || typeof data.links !== 'object' || Array.isArray(data.links)) {
-    throw new store.ReviewStoreError('INVALID_REGISTRY', `分享注册表结构无效: ${REG_FILE}`, {
-      details: { filePath: REG_FILE },
-    });
-  }
-  return data;
-}
-function resolveLinkById(id, k) {
-  if (!id) return { error: 'noid' };
-  const link = loadReg().links[id];
-  if (!link || typeof link !== 'object' || typeof link.absPath !== 'string' || typeof link.token !== 'string') {
-    return { error: 'notfound' };
-  }
-  if (link.token !== k) return { error: 'badkey' };
-  if (link.expiresAt) {
-    const expiry = Date.parse(link.expiresAt);
-    if (!Number.isFinite(expiry) || expiry < Date.now()) return { error: 'expired' };
-  }
-  return { link, id };
-}
-const resolveLink = (q) => resolveLinkById(q.get('d'), q.get('k'));
 
 function send(res, code, body, headers = {}) {
   res.writeHead(code, Object.assign({ 'Cache-Control': 'no-store' }, headers));
@@ -131,23 +104,12 @@ function readBody(req) {
     });
   });
 }
-const PAGE = (msg) => `<!doctype html><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1"><title>md-read</title>
-<body style="font-family:-apple-system,system-ui,sans-serif;display:flex;min-height:100vh;margin:0;
-align-items:center;justify-content:center;color:#444;text-align:center;padding:24px"><div>${msg}</div></body>`;
-
 function isLoopback(req) {
   const address = req.socket && req.socket.remoteAddress;
   return address === '127.0.0.1' || address === '::1' || address === '::ffff:127.0.0.1';
 }
-function hasCloudflareHeaders(req) {
-  return !!(req.headers['cf-connecting-ip'] || req.headers['cf-ray'] || req.headers['cf-visitor']);
-}
-function isLocalOnlyRequest(req) {
-  return isLoopback(req) && !hasCloudflareHeaders(req);
-}
 function localOnly(req, res) {
-  if (isLocalOnlyRequest(req)) return true;
+  if (isLoopback(req)) return true;
   sendJson(res, 404, { error: 'not_found', message: 'Not found' });
   return false;
 }
@@ -178,19 +140,13 @@ function errorName(error) {
   if (error && error.code === 'REVIEW_READ_ONLY') return 'review_read_only';
   return String((error && error.code) || 'internal_error').toLowerCase();
 }
-function sendError(res, error, options = {}) {
+function sendError(res, error) {
   const status = Number.isInteger(error && error.httpStatus) ? error.httpStatus : 500;
-  let publicMessage = '请求处理失败，请联系分享者。';
-  if (error && error.code === 'SOURCE_CONFLICT') publicMessage = '源文档已变化，当前批注对应旧版本，已停止写入。';
-  else if (error && error.code === 'REVIEW_READ_ONLY') publicMessage = '本轮审阅已提交，现在不能再修改批注。';
-  else if (status === 400 || status === 413) publicMessage = '请求内容无效或过大。';
-  else if (status === 404) publicMessage = '分享文档不存在或已移动，请重新生成链接。';
-  else if (status >= 500) publicMessage = '服务器暂时无法处理该请求，请联系分享者检查 md-read。';
   const payload = {
     error: errorName(error),
-    message: options.publicResponse ? publicMessage : ((error && error.message) || '服务器内部错误。'),
+    message: (error && error.message) || '服务器内部错误。',
   };
-  if (!options.publicResponse && error && error.details !== undefined) payload.details = error.details;
+  if (error && error.details !== undefined) payload.details = error.details;
   return sendJson(res, status, payload);
 }
 function reviewReadOnly(review) {
@@ -260,13 +216,6 @@ async function publishReviewChangedSafe(reviewSessionId, reason) {
     console.error(`审阅状态已更新，但主动通知失败: ${error.message || error}`);
     return null;
   }
-}
-function publicAnnotations(data) {
-  return {
-    version: data.version || 1,
-    file: data.file,
-    annotations: data.annotations,
-  };
 }
 async function requireReview(ref) {
   const review = ref ? await store.getReviewById(ref) : null;
@@ -348,22 +297,6 @@ function applyCommentEdit(annotation, comment, actor) {
   const previousCount = Number(annotation.editCount);
   annotation.editCount = Number.isInteger(previousCount) && previousCount >= 0 ? previousCount + 1 : 1;
   return annotation;
-}
-function applyManualStatus(annotation, status, actor) {
-  annotation.status = status;
-  if (status === 'open') {
-    delete annotation.appliedAt; delete annotation.appliedBy; delete annotation.appliedNote;
-    return;
-  }
-  annotation.appliedAt = new Date().toISOString();
-  annotation.appliedBy = String(actor || '审阅者').slice(0, 80);
-  annotation.appliedNote = status === 'wontfix' ? '由审阅者在网页手动标记为不改。' : '由审阅者在网页手动标记为已处理。';
-}
-async function sharedWriteContext(absMd) {
-  const active = await store.getReviewByPath(absMd, { activeOnly: true });
-  if (!active) return { review: null, mutate: (mutator) => store.mutateAnnotations(absMd, mutator) };
-  const writable = await requireWritableReview(active.id);
-  return { review: writable, mutate: (mutator) => mutateReviewAnnotations(writable, mutator) };
 }
 async function handleReviewAnnotations(req, res, q, review) {
   const absMd = review.absPath;
@@ -488,10 +421,6 @@ async function handleLocalReviewApi(req, res, pathname, q) {
 
   const ref = q.get('r');
   const review = await requireReview(ref);
-  if (pathname === '/api/review') {
-    if (!allowMethods(req, res, ['GET'])) return;
-    return sendJson(res, 200, { review: await reviewSummary(review) });
-  }
   if (pathname === '/api/review/submit') {
     if (!allowMethods(req, res, ['POST'])) return;
     let result;
@@ -504,20 +433,6 @@ async function handleLocalReviewApi(req, res, pathname, q) {
     await publishReviewChangedSafe(result.review.id,
       result.review.status === 'complete' ? 'review-approved' : 'review-submitted');
     return sendJson(res, 200, { ok: true, review: await reviewSummary(result.review) });
-  }
-  if (pathname === '/api/meta') {
-    if (!allowMethods(req, res, ['GET'])) return;
-    const summary = await reviewSummary(review);
-    return sendJson(res, 200, { title: summary.title, viewer: '我(本机)', counts: summary.counts, review: summary });
-  }
-  if (pathname === '/api/raw') {
-    if (!allowMethods(req, res, ['GET'])) return;
-    return sendFile(res, review.absPath, 'private, no-store');
-  }
-  if (pathname === '/api/file') {
-    if (!allowMethods(req, res, ['GET'])) return;
-    const abs = safeJoin(path.dirname(review.absPath), q.get('path'));
-    return abs ? sendFile(res, abs, 'private, no-store') : send(res, 403, 'Forbidden');
   }
   if (pathname === '/api/annotations') return handleReviewAnnotations(req, res, q, review);
   return sendJson(res, 404, { error: 'not_found', message: 'Not found' });
@@ -627,103 +542,6 @@ async function handleAppApi(req, res, pathname, q) {
   return sendJson(res, 404, { error: 'not_found', message: 'Not found' });
 }
 
-async function handleSharedApi(req, res, pathname, q) {
-  const resolved = resolveLink(q);
-  if (resolved.error) return sendJson(res, 401, { error: resolved.error, message: '分享链接无效或已过期。' });
-  const absMd = store.normalizeMdPath(resolved.link.absPath);
-  const baseDir = path.dirname(absMd);
-
-  if (pathname === '/api/meta') {
-    if (!allowMethods(req, res, ['GET'])) return;
-    const data = store.readAnnotations(absMd);
-    return sendJson(res, 200, { title: path.basename(absMd), viewer: resolved.link.name || '', counts: annotationCounts(data) });
-  }
-  if (pathname === '/api/raw') {
-    if (!allowMethods(req, res, ['GET'])) return;
-    return sendFile(res, absMd, 'private, no-store');
-  }
-  if (pathname === '/api/file') {
-    if (!allowMethods(req, res, ['GET'])) return;
-    const abs = safeJoin(baseDir, q.get('path'));
-    return abs ? sendFile(res, abs, 'private, no-store') : send(res, 403, 'Forbidden');
-  }
-  if (pathname === '/api/annotations') {
-    if (req.method === 'GET') return sendJson(res, 200, publicAnnotations(store.readAnnotations(absMd)));
-    if (req.method === 'POST') {
-      const note = await readBody(req);
-      if (!note || typeof note !== 'object' || !String(note.comment || '').trim()) return sendJson(res, 400, { error: 'bad_request', message: '批注内容不能为空。' });
-      const requestId = note.clientRequestId ? String(note.clientRequestId).slice(0, 120) : null;
-      const result = await store.withReviewTransaction(absMd, async () => {
-        const context = await sharedWriteContext(absMd);
-        return context.mutate((data) => {
-          if (requestId) {
-            const existing = data.annotations.find((item) => item.clientRequestId === requestId);
-            if (existing) return { note: existing, reused: true };
-          }
-          const created = buildNote(note, resolved.link.name || note.author || '匿名', context.review ? {
-            reviewSessionId: context.review.id,
-            sourceHash: context.review.sourceHash,
-          } : {});
-          if (!requestId) delete created.clientRequestId;
-          data.annotations.push(created);
-          return { note: created, reused: false };
-        });
-      });
-      return sendJson(res, 200, { ok: true, ...result });
-    }
-    if (req.method === 'PATCH') {
-      const id = q.get('id');
-      const body = await readBody(req);
-      const isCommentEdit = hasOwn(body, 'comment');
-      const comment = isCommentEdit ? editedComment(body) : null;
-      const allowed = ['open', 'applied', 'wontfix'];
-      if (!id || !body || typeof body !== 'object' || Array.isArray(body) ||
-          (isCommentEdit ? !comment || hasOwn(body, 'status') : !allowed.includes(body.status))) {
-        const message = isCommentEdit ? '批注内容不能为空，且不能同时修改状态。' : '缺少批注 id 或状态无效。';
-        return sendJson(res, 400, { error: 'bad_request', message });
-      }
-      let found = false;
-      let immutable = false;
-      let updatedNote = null;
-      await store.withReviewTransaction(absMd, async () => {
-        const context = await sharedWriteContext(absMd);
-        await context.mutate((data) => {
-          const annotation = data.annotations.find((item) => item.id === id);
-          if (annotation) {
-            found = true;
-            if (isCommentEdit) {
-              if (annotation.status !== 'open') { immutable = true; return; }
-              updatedNote = applyCommentEdit(annotation, comment, resolved.link.name || '远程审阅者');
-            } else {
-              applyManualStatus(annotation, body.status, resolved.link.name || '远程审阅者');
-            }
-          }
-        });
-      });
-      if (immutable) return sendJson(res, 409, { error: 'annotation_read_only', message: '已处理批注不能编辑。' });
-      if (!found) return sendJson(res, 404, { error: 'annotation_not_found', message: '找不到批注。' });
-      return sendJson(res, 200, isCommentEdit ? { ok: true, note: updatedNote } : { ok: true });
-    }
-    if (req.method === 'DELETE') {
-      const id = q.get('id');
-      if (!id) return sendJson(res, 400, { error: 'bad_request', message: '缺少批注 id。' });
-      let found = false;
-      await store.withReviewTransaction(absMd, async () => {
-        const context = await sharedWriteContext(absMd);
-        await context.mutate((data) => {
-          const before = data.annotations.length;
-          data.annotations = data.annotations.filter((annotation) => annotation.id !== id);
-          found = data.annotations.length !== before;
-        });
-      });
-      if (!found) return sendJson(res, 404, { error: 'annotation_not_found', message: '找不到批注。' });
-      return sendJson(res, 200, { ok: true });
-    }
-    return sendJson(res, 405, { error: 'method_not_allowed', message: 'Method not allowed' });
-  }
-  return sendJson(res, 404, { error: 'not_found', message: 'Not found' });
-}
-
 async function handler(req, res) {
   const u = new URL(req.url, 'http://localhost');
   let pathname;
@@ -741,30 +559,14 @@ async function handler(req, res) {
     return abs ? sendFile(res, abs, cache) : send(res, 403, 'Forbidden');
   }
 
-  if (pathname.startsWith('/d/')) {
-    if (!allowMethods(req, res, ['GET'])) return;
-    const resolved = resolveLinkById(pathname.slice(3).split('/')[0], q.get('k'));
-    if (resolved.error) return send(res, 401, PAGE(
-      resolved.error === 'expired' ? '⌛ 这条链接已过期，请向分享者重新索取。' : '🔒 链接无效或缺少密钥。'),
-    { 'Content-Type': 'text/html; charset=utf-8' });
-    return sendFile(res, path.join(STATIC_DIR, 'app.html'), 'no-store');
-  }
-  if (pathname.startsWith('/api/') && !pathname.startsWith('/api/app/') && q.get('d')) {
-    return handleSharedApi(req, res, pathname, q);
-  }
-
-  const reviewPage = pathname.match(/^\/r\/([A-Za-z0-9_-]+)$/);
-  const localPage = pathname === '/desktop' || pathname === '/desktop/' || reviewPage;
+  const localPage = pathname === '/desktop' || pathname === '/desktop/';
   const reviewApi = pathname === '/api/health' || pathname === '/api/reviews' ||
-    pathname === '/api/review' || pathname === '/api/review/submit' ||
-    pathname.startsWith('/api/app/') || !!q.get('r');
+    pathname === '/api/review/submit' || pathname.startsWith('/api/app/') || !!q.get('r');
   if (localPage || reviewApi) {
     if (!localOnly(req, res)) return;
-    if (localPage && !allowMethods(req, res, ['GET'])) return;
-    if (pathname === '/desktop' || pathname === '/desktop/') return sendFile(res, path.join(STATIC_DIR, 'desktop.html'), 'no-store');
-    if (reviewPage) {
-      await requireReview(reviewPage[1]);
-      return sendFile(res, path.join(STATIC_DIR, 'app.html'), 'no-store');
+    if (localPage) {
+      if (!allowMethods(req, res, ['GET'])) return;
+      return sendFile(res, path.join(STATIC_DIR, 'desktop.html'), 'no-store');
     }
     if (pathname.startsWith('/api/app/')) {
       if (!localAppOriginOnly(req, res)) return;
@@ -782,7 +584,6 @@ function banner(port) {
   const line = '─'.repeat(54);
   console.log(`\n${line}\n  📖  md-read 已启动  ${HOST}:${port}\n${line}`);
   console.log(`  MDTurn: http://localhost:${port}/desktop`);
-  console.log('  对外分享: 由 mdshare 生成 /d/<id>?k=<token> 链接');
   console.log('  停止: Ctrl + C\n');
 }
 async function publishPort(port) {
@@ -820,9 +621,7 @@ for (const signal of ['SIGINT', 'SIGTERM']) {
   const server = http.createServer((req, res) => {
     handler(req, res).catch((error) => {
       if (!Number.isInteger(error && error.httpStatus) || error.httpStatus >= 500) console.error(error);
-      let publicResponse = false;
-      try { publicResponse = new URL(req.url, 'http://localhost').searchParams.has('d'); } catch {}
-      if (!res.headersSent) sendError(res, error, { publicResponse });
+      if (!res.headersSent) sendError(res, error);
       else res.destroy();
     });
   });

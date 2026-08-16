@@ -9,12 +9,12 @@ const test = require('node:test');
 const {
   candidatePorts,
   ensureService,
+  ownedDataDirectory,
   parsePort,
   requestHealth,
   serverDirectory,
-  startWindowsService,
+  startOwnedService,
   stopOwnedService,
-  windowsDataDirectory,
 } = require('../service');
 
 test('parsePort fails closed for malformed and out-of-range values', () => {
@@ -50,30 +50,29 @@ test('requestHealth only accepts the md-read health contract', async (context) =
   assert.equal(result.payload.service, 'md-read');
 });
 
-test('ensureService does not kickstart when a healthy service already exists', async (context) => {
+test('ensureService reuses a healthy service without spawning', async (context) => {
   const server = http.createServer((_request, response) => {
     const { port } = server.address();
     response.end(JSON.stringify({ ok: true, service: 'md-read', port }));
   });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   context.after(() => new Promise((resolve) => server.close(resolve)));
-  let kickstarts = 0;
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mdturn-service-'));
   const portFile = path.join(tempDir, 'port');
   fs.writeFileSync(portFile, String(server.address().port));
   context.after(() => fs.rmSync(tempDir, { recursive: true, force: true }));
+  let spawns = 0;
 
   const service = await ensureService({
-    platform: 'darwin',
     portFiles: [portFile],
     scanDefault: false,
-    kickstart: async () => { kickstarts += 1; },
+    startService: () => { spawns += 1; throw new Error('不应触发'); },
   });
   assert.equal(service.port, server.address().port);
-  assert.equal(kickstarts, 0);
+  assert.equal(spawns, 0);
 });
 
-test('ensureService kickstarts once and then discovers the helper port', async (context) => {
+test('ensureService spawns the owned service once and discovers its port', async (context) => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mdturn-service-'));
   const portFile = path.join(tempDir, 'port');
   const server = http.createServer((_request, response) => {
@@ -82,40 +81,41 @@ test('ensureService kickstarts once and then discovers the helper port', async (
   });
   context.after(() => new Promise((resolve) => server.close(resolve)));
   context.after(() => fs.rmSync(tempDir, { recursive: true, force: true }));
-  let kickstarts = 0;
+  const fakeChild = { exitCode: null, killed: false, mdturnSpawnError: null, kill() { this.killed = true; } };
+  let spawns = 0;
 
   const service = await ensureService({
-    platform: 'darwin',
-    portFiles: [portFile],
+    portFiles: [],
     scanDefault: false,
     readyTimeoutMs: 1_000,
     pollIntervalMs: 10,
-    kickstart: async () => {
-      kickstarts += 1;
-      await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
-      fs.writeFileSync(portFile, String(server.address().port));
+    startService: () => {
+      spawns += 1;
+      // 模拟内置服务异步就绪:上线后写端口文件,轮询应能发现它。
+      server.listen(0, '127.0.0.1', () => {
+        fs.writeFileSync(portFile, String(server.address().port));
+      });
+      return { child: fakeChild, dataDir: tempDir, portFile };
     },
   });
-
+  assert.equal(spawns, 1);
   assert.equal(service.port, server.address().port);
-  assert.equal(kickstarts, 1);
+  assert.equal(service.ownedProcess, fakeChild);
 });
 
-test('packaged Windows paths use resources and the Electron user data directory', () => {
+test('packaged paths use resources; data directory is shared and overridable', () => {
   const resourcesPath = path.resolve(path.parse(process.cwd()).root, 'app', 'resources');
-  const userDataPath = path.resolve(path.parse(process.cwd()).root, 'Users', 'test', 'AppData', 'MDTurn');
   assert.equal(
     serverDirectory({ isPackaged: true, resourcesPath }),
     path.join(resourcesPath, 'mdturn-server'),
   );
-  assert.equal(
-    windowsDataDirectory({ userDataDir: userDataPath }),
-    path.join(userDataPath, 'mdread'),
-  );
+  assert.equal(ownedDataDirectory({ dataDir: '/tmp/custom-mdread' }), path.resolve('/tmp/custom-mdread'));
+  const fallback = ownedDataDirectory({});
+  assert.ok(fallback === path.resolve(process.env.MDREAD_DATA_DIR || path.join(os.homedir(), '.mdread')));
 });
 
-test('startWindowsService uses Electron as Node with loopback and a dynamic port', (context) => {
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mdturn-win-spawn-'));
+test('startOwnedService uses Electron as Node with loopback and a dynamic port', (context) => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mdturn-spawn-'));
   fs.writeFileSync(path.join(tempDir, 'server.js'), '// fixture\n');
   context.after(() => fs.rmSync(tempDir, { recursive: true, force: true }));
   let invocation = null;
@@ -123,19 +123,21 @@ test('startWindowsService uses Electron as Node with loopback and a dynamic port
   fakeChild.exitCode = null;
   fakeChild.killed = false;
   fakeChild.kill = () => { fakeChild.killed = true; return true; };
-  const started = startWindowsService({
+  const dataDir = path.join(tempDir, 'data');
+  const started = startOwnedService({
     serverDir: tempDir,
-    userDataDir: path.join(tempDir, 'user-data'),
+    dataDir,
     executablePath: 'MDTurn.exe',
     spawn: (...args) => { invocation = args; return fakeChild; },
   });
   assert.equal(invocation[0], 'MDTurn.exe');
   assert.deepEqual(invocation[1], [path.join(tempDir, 'server.js')]);
   assert.equal(invocation[2].env.ELECTRON_RUN_AS_NODE, '1');
+  assert.equal(invocation[2].env.MDREAD_DATA_DIR, path.resolve(dataDir));
   assert.equal(invocation[2].env.MDREAD_HOST, '127.0.0.1');
   assert.equal(invocation[2].env.MDREAD_PORT, '0');
   assert.equal(invocation[2].windowsHide, true);
-  assert.equal(started.portFile, path.join(tempDir, 'user-data', 'mdread', 'port'));
+  assert.equal(started.portFile, path.join(path.resolve(dataDir), 'port'));
 });
 
 test('stopOwnedService is safe to call repeatedly', () => {
@@ -146,8 +148,8 @@ test('stopOwnedService is safe to call repeatedly', () => {
   assert.equal(kills, 1);
 });
 
-test('Windows startup timeout terminates the owned service', async (context) => {
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mdturn-win-timeout-'));
+test('startup timeout terminates the owned service', async (context) => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mdturn-timeout-'));
   fs.writeFileSync(path.join(tempDir, 'server.js'), '// fixture\n');
   context.after(() => fs.rmSync(tempDir, { recursive: true, force: true }));
   const child = new (require('node:events').EventEmitter)();
@@ -156,9 +158,8 @@ test('Windows startup timeout terminates the owned service', async (context) => 
   child.kill = () => { child.killed = true; return true; };
 
   await assert.rejects(ensureService({
-    platform: 'win32',
     serverDir: tempDir,
-    userDataDir: path.join(tempDir, 'user-data'),
+    dataDir: path.join(tempDir, 'data'),
     portFiles: [],
     scanDefault: false,
     spawn: () => child,
@@ -168,8 +169,8 @@ test('Windows startup timeout terminates the owned service', async (context) => 
   assert.equal(child.killed, true);
 });
 
-test('Windows startup reports an owned service that exits early', async (context) => {
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mdturn-win-exit-'));
+test('startup reports an owned service that exits early', async (context) => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mdturn-exit-'));
   fs.writeFileSync(path.join(tempDir, 'server.js'), '// fixture\n');
   context.after(() => fs.rmSync(tempDir, { recursive: true, force: true }));
   const child = new (require('node:events').EventEmitter)();
@@ -178,9 +179,8 @@ test('Windows startup reports an owned service that exits early', async (context
   child.kill = () => { child.killed = true; return true; };
 
   await assert.rejects(ensureService({
-    platform: 'win32',
     serverDir: tempDir,
-    userDataDir: path.join(tempDir, 'user-data'),
+    dataDir: path.join(tempDir, 'data'),
     portFiles: [],
     scanDefault: false,
     spawn: () => child,

@@ -107,10 +107,6 @@ test('MDTurn API 手工改稿闭环：旧批注、备份、原子写、幂等与
     annotations: [{ id: 'legacy-open', comment: '请改标题', quote: '旧标题' }],
   }, null, 2));
 
-  const cloudflare = await request(f.port, '/api/app/open', {
-    method: 'POST', headers: { 'cf-connecting-ip': '203.0.113.1' }, body: { path: file },
-  });
-  assert.equal(cloudflare.status, 404);
   const crossSite = await request(f.port, '/api/app/open', {
     method: 'POST',
     headers: { Origin: 'https://example.invalid', 'sec-fetch-site': 'cross-site' },
