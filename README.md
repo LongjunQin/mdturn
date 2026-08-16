@@ -73,7 +73,6 @@ When you and an agent write documents together, **you supply the judgment — MD
 - A separate edit mode (CodeMirror) with live preview, draft recovery, and note-by-note triage. · 独立编辑模式(CodeMirror):实时预览、草稿恢复、逐条处理批注。
 - Version-conflict interception with SHA-256 verification — if the file changes mid-review, writing stops immediately. · 版本冲突拦截与 SHA-256 校验:审阅期间源文件一旦变化,立即停止写入。
 - System notification when the agent finishes while the app is in the background. · 智能体改稿完成时,App 在后台也会收到系统通知。
-- A bonus phone channel: `mdshare` sends a document to any phone via a Cloudflare link. · 附赠手机通道:`mdshare` 生成 Cloudflare 链接,把文档发到任何手机上批注。
 
 ## Working with AI agents · 配合智能体使用
 

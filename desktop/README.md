@@ -14,9 +14,9 @@ npm run build:vendor
 npm run dev
 ```
 
-On Windows, the desktop shell starts the repository's `server.js` with Electron's bundled Node runtime.
-It binds only to `127.0.0.1`, chooses a free port, and stores service state below Electron's user-data
-directory. End users do not need a separate Node.js installation.
+On both macOS and Windows, the desktop shell starts the bundled `server.js` with Electron's own Node
+runtime. It binds only to `127.0.0.1`, chooses a free port, and shares service state with the
+`mdreview` CLI below `~/.mdread`. End users do not need a separate Node.js installation.
 
 ## Build and test
 
@@ -39,6 +39,5 @@ single-instance file-open delivery. Context isolation and the renderer sandbox r
 
 ## Windows beta boundary
 
-The Windows beta supports the complete local review/edit workflow. The macOS launchd helper,
-Cloudflare tunnel scripts, phone sharing, code signing, auto-update, portable builds, and ARM64 are
-not part of this target.
+The Windows beta supports the complete local review/edit workflow. Code signing, auto-update,
+portable builds, and ARM64 are not part of this target.

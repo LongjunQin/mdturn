@@ -22,7 +22,7 @@ npm --prefix desktop run dev        # 启动桌面壳(需本地服务在跑,或�
 ```bash
 node --test test/*.test.js          # 服务与存储层测试
 npm --prefix desktop test           # 桌面壳测试
-node --check server.js && node --check mdshare.js && node --check mdreview.js
+node --check server.js && node --check mdreview.js
 ```
 
 ## 代码约定
@@ -31,8 +31,8 @@ node --check server.js && node --check mdshare.js && node --check mdreview.js
 - 桌面壳依赖必须精确锁版本(`"x.y.z"`,不带 `^`/`~`),并更新 `desktop/package-lock.json`;
 - 新增第三方库须为宽松许可证(MIT/BSD/Apache 类),并在 README「开源许可」一节登记;
 - JSON 落盘一律走 `lib/review-store` 的原子写入与校验,不得绕过;
-- 安全边界不放松:服务只监听 `127.0.0.1`;`/desktop`、审阅接口和本地文件接口必须
-  继续拒绝携带 Cloudflare 头的请求;分享链接必须带 ID + token。
+- 安全边界不放松:服务只监听 `127.0.0.1`,不引入任何公网入口;审阅接口只接受
+  loopback 请求。
 - 界面与文档以中文为主,欢迎补充英文;提交信息中英文皆可。
 
 ## 提交方式

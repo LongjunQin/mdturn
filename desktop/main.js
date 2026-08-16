@@ -14,9 +14,6 @@ const {
 const { markdownPathsFromArguments, normalizeMarkdownPath } = require('./open-files');
 const { ensureService, stopOwnedService } = require('./service');
 
-const PROJECT_DIR = app.isPackaged
-  ? path.join(process.resourcesPath, 'mdturn-server')
-  : path.resolve(__dirname, '..');
 const OPEN_FILES_CHANNEL = 'mdturn:open-files';
 const COMMAND_CHANNEL = 'mdturn:command';
 const ACTIVATE_REVIEW_CHANNEL = 'mdturn:activate-review';
@@ -125,8 +122,6 @@ async function connectAndLoad() {
   connecting = (async () => {
     try {
       const service = await ensureService({
-        projectDir: PROJECT_DIR,
-        userDataDir: app.getPath('userData'),
         isPackaged: app.isPackaged,
         resourcesPath: process.resourcesPath,
         executablePath: process.execPath,

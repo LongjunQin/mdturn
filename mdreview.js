@@ -15,8 +15,6 @@ const {
   unlockReview,
 } = require('./lib/review-store');
 
-const LAUNCH_AGENT = 'com.mdread.serve';
-
 function usage() {
   return [
     '用法:',
@@ -172,30 +170,6 @@ function resolveMDTurnApp() {
   return null;
 }
 
-async function ensureService() {
-  let healthy = await findHealthyService();
-  if (healthy) return healthy;
-
-  const domain = `gui/${process.getuid()}`;
-  const kickstart = spawnSync('/bin/launchctl', ['kickstart', '-k', `${domain}/${LAUNCH_AGENT}`], {
-    encoding: 'utf8', timeout: 5000,
-  });
-  if (kickstart.error || kickstart.status !== 0) {
-    const detail = (kickstart.stderr || kickstart.error?.message || '').trim();
-    throw new ReviewStoreError('SERVICE_START_FAILED',
-      `无法启动 ${LAUNCH_AGENT}${detail ? `: ${detail}` : ''}`, { httpStatus: 503 });
-  }
-
-  const deadline = Date.now() + 12000;
-  while (Date.now() < deadline) {
-    await new Promise((resolve) => setTimeout(resolve, 250));
-    healthy = await findHealthyService();
-    if (healthy) return healthy;
-  }
-  throw new ReviewStoreError('SERVICE_UNAVAILABLE',
-    `已启动 ${LAUNCH_AGENT}，但 12 秒内未检测到本地服务。请检查 /tmp/mdread-server.log。`, { httpStatus: 503 });
-}
-
 function printReview(review) {
   console.log(`文档: ${review.absPath}`);
   console.log(`会话: ${review.id}`);
@@ -204,7 +178,6 @@ function printReview(review) {
 
 async function commandOpen(args) {
   if (!args.file) throw new ReviewStoreError('BAD_ARGUMENT', usage(), { httpStatus: 400 });
-  const service = args.noOpen ? null : await ensureService();
   const { review, reused, recovered } = await openReview(args.file);
   printReview(review);
   if (recovered) console.log('检测到旧会话冲突且批注已全部处理,已自动结束旧会话。');
@@ -212,30 +185,23 @@ async function commandOpen(args) {
   console.log(`→ Agent 下一步: 立即以后台任务挂起 mdreview wait "${review.absPath}",阻塞至用户点击「完成本轮审阅」;用户不会回到对话里通报。审阅期间禁止绕过 mdreview 直接修改该文档。`);
   if (args.noOpen) return;
 
-  const url = `http://127.0.0.1:${service.port}/r/${encodeURIComponent(review.id)}`;
   if (process.platform !== 'darwin') {
-    throw new ReviewStoreError('OPEN_UNSUPPORTED', `当前系统不能自动打开浏览器，请手动访问: ${url}`, { httpStatus: 500 });
+    throw new ReviewStoreError('OPEN_UNSUPPORTED',
+      '当前系统不支持自动唤起 MDTurn,请手动在 MDTurn 应用中打开该文档(会话已创建,亦可用 --no-open 静默此提示)。', { httpStatus: 500 });
   }
-
-  // Only target a real installed bundle, not an indexed development build.
-  // This keeps the existing browser flow usable while a staged App has not
-  // been activated in /Applications yet.
   const appPath = resolveMDTurnApp();
-  const appOpened = appPath ? spawnSync('/usr/bin/open', ['-a', appPath, review.absPath], {
+  if (!appPath) {
+    throw new ReviewStoreError('APP_NOT_FOUND',
+      '未找到 MDTurn.app。请把 MDTurn 安装到 /Applications(下载: https://github.com/LongjunQin/mdturn/releases)后重试;审阅会话已创建,安装后重新运行本命令即可。', { httpStatus: 500 });
+  }
+  const appOpened = spawnSync('/usr/bin/open', ['-a', appPath, review.absPath], {
     encoding: 'utf8', timeout: 5000,
-  }) : null;
-  if (appOpened && !appOpened.error && appOpened.status === 0) {
-    // Keep printing the localhost URL for scripts and for manual recovery.
-    console.log(`本地审阅: ${url}`);
-    return;
+  });
+  if (appOpened.error || appOpened.status !== 0) {
+    const detail = (appOpened.stderr || appOpened.error?.message || '').trim();
+    throw new ReviewStoreError('APP_OPEN_FAILED', `无法打开 MDTurn${detail ? `: ${detail}` : ''}`, { httpStatus: 500 });
   }
-
-  const opened = spawnSync('/usr/bin/open', [url], { encoding: 'utf8', timeout: 5000 });
-  if (opened.error || opened.status !== 0) {
-    const detail = (opened.stderr || opened.error?.message || '').trim();
-    throw new ReviewStoreError('BROWSER_OPEN_FAILED', `无法打开浏览器${detail ? `: ${detail}` : ''}`, { httpStatus: 500 });
-  }
-  console.log(`本地审阅: ${url}`);
+  console.log('已在 MDTurn 中打开,等待用户审阅。');
 }
 
 async function commandStatus(args) {

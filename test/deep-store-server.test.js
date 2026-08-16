@@ -175,26 +175,13 @@ test('A、B 两篇文档同时审阅时，API 与 sidecar 批注互不串写', a
   assert.equal(store.readAnnotations(fileB).annotations[0].reviewSessionId, openedB.review.id);
 });
 
-test('批注正文 PATCH 保留旧状态行为，并在本地与远程入口执行冻结与哈希保护', async (t) => {
+test('批注正文 PATCH 保留旧状态行为并执行冻结保护', async (t) => {
   const f = fixture(t);
   const localFile = writeMd(f.docRoot, '本地编辑.md');
-  const remoteFile = writeMd(f.docRoot, '远程编辑.md');
   const local = await store.openReview(localFile, { dataDir: f.dataDir });
-  const remote = await store.openReview(remoteFile, { dataDir: f.dataDir });
   await store.mutateAnnotations(localFile, (data) => {
     data.annotations.push({ id: 'local-note', comment: '本地原批注', status: 'open' });
   });
-  await store.mutateAnnotations(remoteFile, (data) => {
-    data.annotations.push({ id: 'remote-note', comment: '远程原批注', status: 'open' });
-  });
-  await store.atomicWriteJson(store.getPaths({ dataDir: f.dataDir }).registry, {
-    links: {
-      remote1: {
-        absPath: remoteFile, token: 'remote-token', name: '小王',
-        createdAt: new Date().toISOString(), expiresAt: null,
-      },
-    },
-  }, { mode: 0o600 });
   const { port } = await startServer(t, f);
 
   const localEdit = await rawRequest(port, `/api/annotations?r=${local.review.id}&id=local-note`, {
@@ -223,22 +210,6 @@ test('批注正文 PATCH 保留旧状态行为，并在本地与远程入口执�
   });
   assert.equal(readyEdit.status, 423);
   assert.equal(readyEdit.json.error, 'review_read_only');
-
-  const cf = { 'cf-connecting-ip': '203.0.113.1' };
-  const remoteEdit = await rawRequest(port, '/api/annotations?d=remote1&k=remote-token&id=remote-note', {
-    method: 'PATCH', headers: cf, body: { comment: '远程新批注' },
-  });
-  assert.equal(remoteEdit.status, 200);
-  assert.equal(remoteEdit.json.note.updatedBy, '小王');
-  const beforeConflict = fs.readFileSync(store.sidecarFor(remoteFile));
-  fs.appendFileSync(remoteFile, '外部修改\n');
-  const conflictEdit = await rawRequest(port, '/api/annotations?d=remote1&k=remote-token&id=remote-note', {
-    method: 'PATCH', headers: cf, body: { comment: '旧版批注不应写入' },
-  });
-  assert.equal(conflictEdit.status, 409);
-  assert.equal(conflictEdit.json.error, 'source_changed');
-  assert.equal((await store.getReviewById(remote.review.id, { dataDir: f.dataDir })).status, 'conflict');
-  assert.deepEqual(fs.readFileSync(store.sidecarFor(remoteFile)), beforeConflict);
 });
 
 test('同一文档多进程 mdreview open 只创建一个活动会话', async (t) => {
@@ -346,52 +317,27 @@ test('批注与提交竞态不得产生 complete + open 批注', async (t) => {
   );
 });
 
-test('本地与远程附件路由都不得通过 symlink 越出文档目录', async (t) => {
+test('静态资源路由不得通过 symlink 越出 static 目录', async (t) => {
   const f = fixture(t);
-  const file = writeMd(f.docRoot, '路径.md');
-  const outside = path.join(f.root, 'outside.txt');
-  fs.writeFileSync(outside, 'TOP-SECRET', 'utf8');
-  let symlinkSupported = true;
-  try {
-    fs.symlinkSync(outside, path.join(f.docRoot, 'escape.txt'));
-  } catch (error) {
-    if (process.platform !== 'win32' || error.code !== 'EPERM') throw error;
-    symlinkSupported = false;
-    t.diagnostic('当前 Windows 环境没有创建 symlink 的权限，仅验证词法越界。');
-  }
-  const { review } = await store.openReview(file, { dataDir: f.dataDir });
-  await store.atomicWriteJson(store.getPaths({ dataDir: f.dataDir }).registry, {
-    links: { link1: { absPath: file, token: 'token1', name: '远程', createdAt: new Date().toISOString(), expiresAt: null } },
-  }, { mode: 0o600 });
+  writeMd(f.docRoot, '路径.md');
   const { port } = await startServer(t, f);
-
-  const lexical = await rawRequest(port, `/api/file?r=${review.id}&path=..%2Foutside.txt`);
-  assert.equal(lexical.status, 403);
-  if (symlinkSupported) {
-    const localSymlink = await rawRequest(port, `/api/file?r=${review.id}&path=escape.txt`);
-    assert.equal(localSymlink.status, 403);
-    const remoteSymlink = await rawRequest(port, '/api/file?d=link1&k=token1&path=escape.txt', {
-      headers: { 'cf-connecting-ip': '203.0.113.1' },
-    });
-    assert.equal(remoteSymlink.status, 403);
-  }
+  assert.equal((await rawRequest(port, '/static/..%2Fserver.js')).status, 403);
+  // 未编码的 ../ 在 URL 解析阶段即被折叠出 /static/ 前缀,落到 404。
+  assert.equal((await rawRequest(port, '/static/../server.js')).status, 404);
 });
 
 test('GET 接口拒绝写方法，空 PATCH body 返回 400 而非 500', async (t) => {
   const f = fixture(t);
   const file = writeMd(f.docRoot, '方法.md');
   const { review } = await store.openReview(file, { dataDir: f.dataDir });
-  await store.atomicWriteJson(store.getPaths({ dataDir: f.dataDir }).registry, {
-    links: { link1: { absPath: file, token: 'token1', name: '远程', createdAt: new Date().toISOString(), expiresAt: null } },
-  }, { mode: 0o600 });
   const { port } = await startServer(t, f);
 
-  assert.equal((await rawRequest(port, `/api/raw?r=${review.id}`, { method: 'POST', body: {} })).status, 405);
-  assert.equal((await rawRequest(port, `/api/meta?r=${review.id}`, { method: 'DELETE' })).status, 405);
-  const remotePatch = await rawRequest(port, '/api/annotations?d=link1&k=token1&id=missing', {
-    method: 'PATCH', rawBody: 'null', headers: { 'cf-connecting-ip': '203.0.113.1' },
+  assert.equal((await rawRequest(port, '/api/reviews', { method: 'POST', body: {} })).status, 405);
+  assert.equal((await rawRequest(port, '/api/health', { method: 'DELETE' })).status, 405);
+  const nullPatch = await rawRequest(port, `/api/annotations?r=${review.id}&id=missing`, {
+    method: 'PATCH', rawBody: 'null',
   });
-  assert.equal(remotePatch.status, 400);
+  assert.equal(nullPatch.status, 400);
 });
 
 test('2 MB 以上请求体应返回 413，不应直接 ECONNRESET', async (t) => {
@@ -455,57 +401,17 @@ test('/api/reviews 隔离损坏 sidecar，并按路径只返回最新历史会�
   assert.equal(brokenRow.summaryError.code, 'malformed_json');
 });
 
-test('远程 annotations 只返回公开字段，不泄露 sourceFile 绝对路径', async (t) => {
-  const f = fixture(t);
-  const file = writeMd(f.docRoot, '隐私.md');
-  await store.mutateAnnotations(file, (data) => {
-    data.annotations.push({ id: 'n1', comment: '公开批注', status: 'open' });
-  });
-  await store.atomicWriteJson(store.getPaths({ dataDir: f.dataDir }).registry, {
-    links: { link1: { absPath: file, token: 'token1', name: '远程', createdAt: new Date().toISOString(), expiresAt: null } },
-  }, { mode: 0o600 });
-  const { port } = await startServer(t, f);
-
-  const response = await rawRequest(port, '/api/annotations?d=link1&k=token1', {
-    headers: { 'cf-connecting-ip': '203.0.113.1' },
-  });
-  assert.equal(response.status, 200);
-  assert.equal(response.json.sourceFile, undefined);
-  assert.equal(response.json._apply, undefined);
-  assert.equal(response.json.file, path.basename(file));
-  assert.equal(response.json.annotations.length, 1);
-  assert.doesNotMatch(response.text, /mdread-deep-|\/Users\//);
-
-  fs.writeFileSync(store.sidecarFor(file), '{broken', 'utf8');
-  const failedWrite = await rawRequest(port, '/api/annotations?d=link1&k=token1', {
-    method: 'POST',
-    headers: { 'cf-connecting-ip': '203.0.113.1' },
-    body: { comment: '不能写入损坏数据' },
-  });
-  assert.equal(failedWrite.status, 500);
-  assert.doesNotMatch(failedWrite.text, /mdread-deep-|\/Users\/|\.annotations\.json/);
-});
-
 test('API 和动态静态资源不共享缓存，仅 vendor 资源可长缓存', async (t) => {
   const f = fixture(t);
   const file = writeMd(f.docRoot, '缓存.md');
-  fs.writeFileSync(path.join(f.docRoot, 'attachment.txt'), '附件', 'utf8');
   const { review } = await store.openReview(file, { dataDir: f.dataDir });
-  await store.atomicWriteJson(store.getPaths({ dataDir: f.dataDir }).registry, {
-    links: { link1: { absPath: file, token: 'token1', name: '远程', createdAt: new Date().toISOString(), expiresAt: null } },
-  }, { mode: 0o600 });
   const { port } = await startServer(t, f);
-  const cf = { 'cf-connecting-ip': '203.0.113.1' };
 
   const responses = await Promise.all([
     rawRequest(port, '/api/health'),
-    rawRequest(port, `/api/raw?r=${review.id}`),
-    rawRequest(port, `/api/file?r=${review.id}&path=attachment.txt`),
-    rawRequest(port, '/api/raw?d=link1&k=token1', { headers: cf }),
-    rawRequest(port, '/api/file?d=link1&k=token1&path=attachment.txt', { headers: cf }),
-    rawRequest(port, '/api/annotations?d=link1&k=token1', { headers: cf }),
-    rawRequest(port, '/static/app.js'),
-    rawRequest(port, '/d/link1?k=token1', { headers: cf }),
+    rawRequest(port, `/api/annotations?r=${review.id}`),
+    rawRequest(port, '/static/desktop.js'),
+    rawRequest(port, '/desktop'),
   ]);
   assert.ok(responses.every((response) => response.status === 200));
   for (const response of responses) assert.match(response.headers['cache-control'], /no-store/);

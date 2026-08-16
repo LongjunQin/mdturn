@@ -82,7 +82,7 @@ function writeMd(root, name, content) {
   return absPath;
 }
 
-test('/desktop 仅允许 loopback，任何 Cloudflare 标记都必须拒绝', async (t) => {
+test('/desktop 页面只在 loopback 上提供且拒绝写方法', async (t) => {
   const f = await fixture(t);
 
   for (const pathname of ['/desktop', '/desktop/']) {
@@ -90,23 +90,13 @@ test('/desktop 仅允许 loopback，任何 Cloudflare 标记都必须拒绝', as
     assert.equal(local.status, 200, `${pathname} 应允许 loopback`);
     assert.match(local.headers['content-type'] || '', /^text\/html/);
     assert.match(local.text, /MDTurn/);
-
-    for (const headers of [
-      { 'cf-connecting-ip': '203.0.113.1' },
-      { 'cf-ray': 'test-ray' },
-      { 'cf-visitor': '{"scheme":"https"}' },
-    ]) {
-      const blocked = await request(f.port, pathname, { headers });
-      assert.equal(blocked.status, 404, `${pathname} 带 ${Object.keys(headers)[0]} 时必须隐藏`);
-      assert.doesNotMatch(blocked.text, /MDTurn/);
-    }
   }
 
   const wrongMethod = await request(f.port, '/desktop', { method: 'POST', body: {} });
   assert.equal(wrongMethod.status, 405);
 });
 
-test('桌面资源接口支持文档上级目录和绝对本机路径，且公网请求不可见', async (t) => {
+test('桌面资源接口支持文档上级目录和绝对本机路径，且跨站请求不可见', async (t) => {
   const f = await fixture(t);
   const reportDir = path.join(f.docRoot, 'reports');
   const assetDir = path.join(f.root, 'assets');
@@ -140,7 +130,7 @@ test('桌面资源接口支持文档上级目录和绝对本机路径，且公�
   const blocked = await request(
     f.port,
     `/api/app/file?r=${encodeURIComponent(reviewId)}&path=${encodeURIComponent(asset)}`,
-    { headers: { 'cf-ray': 'remote-request' } },
+    { headers: { Origin: 'https://example.invalid', 'sec-fetch-site': 'cross-site' } },
   );
   assert.equal(blocked.status, 404);
 });
