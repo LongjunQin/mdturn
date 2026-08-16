@@ -128,11 +128,15 @@ npm --prefix desktop run dist:app
 当前构建使用 ad-hoc 签名，适合本机安装和早期开源试用；正式公开下载前还需要 Apple Developer ID
 签名与 notarization。
 
-生成 Windows 11 x64 安装包（需在 Windows 上构建）：
+生成 Windows 11 x64 安装包（无原生依赖、不签名，因此在 macOS 上也能直接交叉构建）：
 
-```powershell
+```bash
 npm --prefix desktop run dist:win
 ```
+
+正式发布走 GitHub Actions：推送 `v*` 标签后，CI 会在真实 macOS 与 Windows 机器上
+跑完整测试并构建 `.dmg` 与 `.exe`，以草稿 Release 形式挂出，人工确认后发布
+（见 `.github/workflows/release.yml`）。
 
 产物为 `desktop/dist/MDTurn-<版本>-x64.exe`（NSIS 安装器，支持自选目录、快捷方式、
 卸载和 `.md` 文件关联）。Windows Beta 未做代码签名，安装时 SmartScreen 显示“未知发布者”

@@ -35,6 +35,12 @@ node --check server.js && node --check mdreview.js
   loopback 请求。
 - 界面与文档以中文为主,欢迎补充英文;提交信息中英文皆可。
 
+## 发布
+
+推送 `v*` 标签即触发 `.github/workflows/release.yml`:在 macOS 与 Windows 上分别跑
+全部测试并构建 `.dmg` / `.exe`,产物挂为草稿 Release,人工确认后发布。Windows 包
+未签名,SmartScreen 提示属预期,保持 Beta 标注。
+
 ## 提交方式
 
 - Fork 后从 `main` 拉分支,小步提交,PR 描述里写清动机与验证方式;
