@@ -49,6 +49,9 @@ async function waitForPort(portFile, child) {
 }
 
 test('本地审阅:幂等保存、状态冻结、冲突停写与公网路由关闭', async (t) => {
+  // 分段计时:CI 上此测试若超时,stderr 里的检查点能定位卡在哪一步
+  const startedAt = Date.now();
+  const mark = (label) => console.error(`[server-test +${Date.now() - startedAt}ms] ${label}`);
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'mdread-server-'));
   const dataDir = path.join(root, '.mdread');
   const docRoot = path.join(root, 'docs');
@@ -77,9 +80,11 @@ test('本地审阅:幂等保存、状态冻结、冲突停写与公网路由关�
   });
   const portFile = store.getPaths({ dataDir }).port;
   const port = await waitForPort(portFile, child);
+  mark('服务已启动');
 
   assert.equal((await request(port, '/api/health')).status, 200);
   assert.equal((await request(port, '/')).status, 404);
+  mark('健康检查完成');
 
   const opened = await store.openReview(localDoc, { dataDir });
   const reviewId = opened.review.id;
@@ -100,6 +105,7 @@ test('本地审阅:幂等保存、状态冻结、冲突停写与公网路由关�
   assert.equal(saved.json.note.customField, undefined);
   assert.equal(saved.json.note.figureRef, undefined);
   assert.equal(store.readAnnotations(localDoc).annotations.length, 1);
+  mark('幂等保存完成');
 
   const edited = await request(port, `/api/annotations?r=${reviewId}&id=${saved.json.note.id}`, {
     method: 'PATCH', body: { comment: '  修改后的批注  ' },
@@ -116,6 +122,7 @@ test('本地审阅:幂等保存、状态冻结、冲突停写与公网路由关�
     method: 'PATCH', body: { comment: '   ' },
   });
   assert.equal(emptyEdit.status, 400);
+  mark('批注编辑完成');
 
   const submitted = await request(port, `/api/review/submit?r=${reviewId}`, { method: 'POST' });
   assert.equal(submitted.json.review.status, 'ready_to_apply');
@@ -127,6 +134,7 @@ test('本地审阅:幂等保存、状态冻结、冲突停写与公网路由关�
   });
   assert.equal(editLocked.status, 423);
   assert.equal(editLocked.json.error, 'review_read_only');
+  mark('提交冻结完成');
 
   const conflict = await store.openReview(conflictDoc, { dataDir });
   await store.mutateAnnotations(conflictDoc, (data) => data.annotations.push({ id: 'kept', comment: '保留', status: 'open' }));
@@ -139,6 +147,7 @@ test('本地审阅:幂等保存、状态冻结、冲突停写与公网路由关�
   assert.equal(conflictSave.json.error, 'source_changed');
   assert.equal((await store.getReviewById(conflict.review.id, { dataDir })).status, 'conflict');
   assert.deepEqual(fs.readFileSync(store.sidecarFor(conflictDoc)), conflictSidecarBefore);
+  mark('冲突停写完成');
 
   // 手机/浏览器分享通道已移除:这些路由必须保持关闭。
   assert.equal((await request(port, '/d/abc12345?k=secret-token')).status, 404);
@@ -147,6 +156,7 @@ test('本地审阅:幂等保存、状态冻结、冲突停写与公网路由关�
   assert.equal((await request(port, '/browse')).status, 404);
   assert.equal((await request(port, '/api/tree')).status, 404);
 
+  mark('公网路由检查完成');
   const broken = await store.openReview(brokenDoc, { dataDir });
   const malformed = store.sidecarFor(brokenDoc);
   fs.writeFileSync(malformed, '{broken', 'utf8');
@@ -157,6 +167,7 @@ test('本地审阅:幂等保存、状态冻结、冲突停写与公网路由关�
   assert.equal(malformedResponse.status, 500);
   assert.deepEqual(fs.readFileSync(malformed), malformedBefore);
   assert.match(stderr, /JSON|sidecar|批注/);
+  mark('损坏保护完成,开始关停');
 
   child.kill('SIGTERM');
   const exited = await Promise.race([

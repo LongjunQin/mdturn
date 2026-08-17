@@ -15,6 +15,9 @@ jobs:
       matrix:
         os: [macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    env:
+      # Windows CI 磁盘慢且有 Defender 扫描,高并发锁排队需要比默认 8 秒更宽的余量
+      MDREAD_LOCK_TIMEOUT_MS: '30000'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
