@@ -159,6 +159,17 @@ test('本地审阅:幂等保存、状态冻结、冲突停写与公网路由关�
   assert.match(stderr, /JSON|sidecar|批注/);
 
   child.kill('SIGTERM');
-  await new Promise((resolve) => child.once('exit', resolve));
-  assert.equal(fs.existsSync(portFile), false);
+  const exited = await Promise.race([
+    new Promise((resolve) => child.once('exit', () => resolve(true))),
+    new Promise((resolve) => setTimeout(() => resolve(false), 5000)),
+  ]);
+  if (!exited) {
+    child.kill('SIGKILL');
+    await new Promise((resolve) => child.once('exit', resolve));
+  }
+  // Windows 没有可捕获的 SIGTERM,进程被硬杀,端口文件清理只能在 POSIX 上断言
+  if (process.platform !== 'win32') {
+    assert.equal(exited, true, 'SIGTERM 未能在 5 秒内结束服务');
+    assert.equal(fs.existsSync(portFile), false);
+  }
 });

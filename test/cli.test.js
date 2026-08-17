@@ -11,6 +11,9 @@ const { spawn } = require('child_process');
 const PROJECT = path.resolve(__dirname, '..');
 const MDREVIEW = path.join(PROJECT, 'mdreview.js');
 
+// mdreview open 自动唤起 MDTurn 依赖 /usr/bin/open,仅 macOS 支持
+const DARWIN_ONLY = { skip: process.platform !== 'darwin' ? 'mdreview open 自动唤起仅支持 macOS' : false };
+
 function fixture(prefix) {
   const base = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
   const dataDir = path.join(base, '数据 目录');
@@ -52,7 +55,7 @@ function readReviews(dataDir) {
   return JSON.parse(fs.readFileSync(path.join(dataDir, 'reviews.json'), 'utf8'));
 }
 
-test('mdreview open 创建会话并把文档交给 MDTurn', async () => {
+test('mdreview open 创建会话并把文档交给 MDTurn', DARWIN_ONLY, async () => {
   const f = fixture('mdturn-open-');
   const source = path.join(f.docs, 'MDTurn 优先.md');
   fs.writeFileSync(source, '# MDTurn\n');
@@ -75,7 +78,7 @@ test('mdreview open 创建会话并把文档交给 MDTurn', async () => {
   assert.equal(reviews[0].status, 'reviewing');
 });
 
-test('mdreview open 唤起 MDTurn 失败时报错但保留已创建的会话', async () => {
+test('mdreview open 唤起 MDTurn 失败时报错但保留已创建的会话', DARWIN_ONLY, async () => {
   const f = fixture('mdturn-noapp-');
   const source = path.join(f.docs, '无 App.md');
   fs.writeFileSync(source, '# 无 App\n');
