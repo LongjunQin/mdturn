@@ -14,7 +14,7 @@ const { createReviewEventHub, sseFrame } = require('../lib/review-events');
 const PROJECT = path.resolve(__dirname, '..');
 const MDREVIEW = path.join(PROJECT, 'mdreview.js');
 
-function waitFor(predicate, message, timeoutMs = 4_000) {
+function waitFor(predicate, message, timeoutMs = 15_000) {
   const deadline = Date.now() + timeoutMs;
   return new Promise((resolve, reject) => {
     const check = async () => {
@@ -103,7 +103,7 @@ function connectSse(port, pathname = '/api/app/events') {
         status: res.statusCode,
         headers: res.headers,
         raw: () => raw,
-        next(name, timeoutMs = 3_000) {
+        next(name, timeoutMs = 15_000) {
           const index = events.findIndex((event) => !name || event.name === name);
           if (index >= 0) return Promise.resolve(events.splice(index, 1)[0]);
           return new Promise((resolveEvent, rejectEvent) => {

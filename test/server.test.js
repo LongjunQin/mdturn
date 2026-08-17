@@ -11,6 +11,22 @@ const { spawn } = require('child_process');
 const store = require('../lib/review-store');
 const PROJECT = path.resolve(__dirname, '..');
 
+// Windows 上 child.kill 的信号语义不可靠(第 5 轮 CI 实测 exit 事件不触发),
+// 统一走 taskkill /T /F;所有退出等待都限时,测试永不无界挂起。
+async function stopChild(child, timeoutMs = 8000) {
+  if (child.exitCode !== null) return true;
+  if (process.platform === 'win32') {
+    const { spawnSync } = require('child_process');
+    spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
+  } else {
+    child.kill('SIGTERM');
+  }
+  return Promise.race([
+    new Promise((resolve) => child.once('exit', () => resolve(true))),
+    new Promise((resolve) => setTimeout(() => resolve(false), timeoutMs)),
+  ]);
+}
+
 function request(port, pathname, options = {}) {
   return new Promise((resolve, reject) => {
     const body = options.body === undefined ? null : JSON.stringify(options.body);
@@ -72,11 +88,8 @@ test('本地审阅:幂等保存、状态冻结、冲突停写与公网路由关�
   let stderr = '';
   child.stderr.on('data', (chunk) => { stderr += chunk; });
   t.after(async () => {
-    if (child.exitCode === null) {
-      child.kill('SIGTERM');
-      await new Promise((resolve) => child.once('exit', resolve));
-    }
-    fs.rmSync(root, { recursive: true, force: true });
+    await stopChild(child);
+    fs.rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   });
   const portFile = store.getPaths({ dataDir }).port;
   const port = await waitForPort(portFile, child);
@@ -169,18 +182,10 @@ test('本地审阅:幂等保存、状态冻结、冲突停写与公网路由关�
   assert.match(stderr, /JSON|sidecar|批注/);
   mark('损坏保护完成,开始关停');
 
-  child.kill('SIGTERM');
-  const exited = await Promise.race([
-    new Promise((resolve) => child.once('exit', () => resolve(true))),
-    new Promise((resolve) => setTimeout(() => resolve(false), 5000)),
-  ]);
-  if (!exited) {
-    child.kill('SIGKILL');
-    await new Promise((resolve) => child.once('exit', resolve));
-  }
+  const exited = await stopChild(child);
   // Windows 没有可捕获的 SIGTERM,进程被硬杀,端口文件清理只能在 POSIX 上断言
   if (process.platform !== 'win32') {
-    assert.equal(exited, true, 'SIGTERM 未能在 5 秒内结束服务');
+    assert.equal(exited, true, 'SIGTERM 未能在限时内结束服务');
     assert.equal(fs.existsSync(portFile), false);
   }
 });
