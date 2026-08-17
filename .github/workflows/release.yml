@@ -7,6 +7,10 @@ on:
     tags: ['v*']
   workflow_dispatch:
 
+# 创建 Release 草稿并上传安装包需要 contents 写权限
+permissions:
+  contents: write
+
 jobs:
   test:
     name: 测试 (${{ matrix.os }})
