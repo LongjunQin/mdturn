@@ -25,10 +25,11 @@ jobs:
         run: |
           npm --prefix desktop ci
           npm --prefix desktop run build:vendor
+      # 引号让 Node 自行展开通配符,macOS bash 与 Windows pwsh 行为一致
       - name: 服务与存储层测试
-        run: node --test --test-timeout=120000 test/
+        run: node --test --test-timeout=120000 "test/*.test.js"
       - name: 桌面壳测试
-        run: node --test --test-timeout=120000 desktop/test/
+        run: node --test --test-timeout=120000 "desktop/test/*.test.js"
       - name: 语法检查
         run: |
           node --check server.js
