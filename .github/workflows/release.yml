@@ -19,7 +19,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          # node --test 接目录参数需 Node 23+,与本地开发环境保持一致
+          node-version: 24
       - name: 安装桌面壳依赖并构建 vendor
         run: |
           npm --prefix desktop ci
@@ -57,7 +58,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
       - name: 安装桌面壳依赖
         run: npm --prefix desktop ci
       - name: 构建安装包
