@@ -688,6 +688,8 @@
 
   function applyReaderZoom() {
     nodes.content.style.zoom = state.readerZoom === 1 ? '' : String(state.readerZoom);
+    // 编辑态正文经 CSS 变量吃同一个缩放值(元素是异步创建的,变量天然免时序问题)
+    document.documentElement.style.setProperty('--reader-zoom', String(state.readerZoom));
     scheduleMarkerPositions();
   }
 
@@ -1886,6 +1888,12 @@
       scheduleMarkerPositions();
     }, { passive: true });
     nodes.readerPane.addEventListener('wheel', (event) => {
+      if (!event.ctrlKey) return;
+      event.preventDefault();
+      setReaderZoom(state.readerZoom * Math.exp(-event.deltaY * 0.01));
+    }, { passive: false });
+    // 编辑模式同样支持触摸板双指缩放,与阅读模式共用同一缩放值
+    nodes.editorPane.addEventListener('wheel', (event) => {
       if (!event.ctrlKey) return;
       event.preventDefault();
       setReaderZoom(state.readerZoom * Math.exp(-event.deltaY * 0.01));

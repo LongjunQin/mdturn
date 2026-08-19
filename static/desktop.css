@@ -766,9 +766,9 @@ details:not([open]) > #historyNotesList { display: none; }
 .save-state.dirty { color: #9a640f; }
 .save-state.error { color: var(--red); }
 .editor-actions { display: flex; gap: 8px; }
-/* 所见即所得编辑:单栏排版视图,版式对齐阅读态的纸面观感 */
+/* 所见即所得编辑:单栏排版视图,与阅读态共用 .markdown-body 的整套排版 */
 .editor-scroll { min-width: 0; min-height: 0; overflow: auto; background: var(--paper); scroll-behavior: smooth; }
-.code-editor { width: min(790px, calc(100% - 64px)); margin: 0 auto; padding: 12px 0 44vh; }
+.code-editor { min-height: 100%; }
 .fallback-editor { width: 100%; height: 100%; resize: none; padding: 18px; border: 0; outline: 0; background: #fff; color: var(--text); font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; font-size: 13px; line-height: 1.65; }
 .editor-scroll:has(.fallback-editor) { overflow: hidden; }
 .editor-scroll:has(.fallback-editor) .code-editor { width: 100%; height: 100%; margin: 0; padding: 0; }
@@ -780,11 +780,27 @@ details:not([open]) > #historyNotesList { display: none; }
   --crepe-color-on-surface-variant: var(--muted);
   --crepe-color-outline: var(--line-strong);
   --crepe-color-primary: var(--text-strong);
-  --crepe-font-title: inherit;
-  --crepe-font-default: inherit;
-  --crepe-base-font-size: 15px;
+  --crepe-font-title: var(--reading-font);
+  --crepe-font-default: var(--reading-font);
 }
-.code-editor .milkdown .ProseMirror { padding: 8px 0 0; }
+/* 编辑态正文挂了 .markdown-body(见 editor-entry),宽度/字号/行距与阅读态同源;
+   下面这组高优先级规则专门压过 Crepe reset.css 里 .milkdown .ProseMirror 的偏差,
+   数值必须与上方 .markdown-body 各规则保持一致 */
+.code-editor .milkdown .ProseMirror.markdown-body { padding: 28px 0 44vh; font-family: var(--reading-font); font-size: 16px; line-height: 1.82; color: #202737; caret-color: #101827; zoom: var(--reader-zoom, 1); }
+.code-editor .milkdown .ProseMirror.markdown-body :is(h1, h2, h3, h4, h5, h6) { font-family: var(--reading-font); color: #101827; font-weight: 750; letter-spacing: -.02em; padding: 0; }
+.code-editor .milkdown .ProseMirror.markdown-body h1 { font-size: 29px; line-height: 1.35; margin: 1.1em 0 .65em; }
+.code-editor .milkdown .ProseMirror.markdown-body h2 { font-size: 23px; line-height: 1.4; margin: 1.65em 0 .65em; padding-top: .15em; }
+.code-editor .milkdown .ProseMirror.markdown-body h3 { font-size: 18px; margin: 1.45em 0 .55em; }
+.code-editor .milkdown .ProseMirror.markdown-body :is(h4, h5, h6) { font-size: 16px; margin: 1.3em 0 .5em; }
+.code-editor .milkdown .ProseMirror.markdown-body p { font-size: 16px; line-height: 1.82; padding: 0; margin: .8em 0; }
+.code-editor .milkdown .ProseMirror.markdown-body li p { margin: 0; }
+.code-editor .milkdown .ProseMirror.markdown-body .milkdown-list-item-block li { gap: 6px; }
+.code-editor .milkdown .ProseMirror.markdown-body .milkdown-list-item-block li .label-wrapper { height: 1.82em; }
+.code-editor .milkdown .ProseMirror.markdown-body .milkdown-list-item-block li .label-wrapper .label { height: auto; padding: 0; }
+.code-editor .milkdown .ProseMirror.markdown-body code { color: inherit; background: #eef0f3; font-size: .9em; }
+.code-editor .milkdown .ProseMirror.markdown-body blockquote { margin: 1.3em 0; padding: .25em 1em; box-sizing: border-box; background: #f5f9ff; color: #43526b; }
+.code-editor .milkdown .ProseMirror.markdown-body blockquote::before { background: #8ab5ef; border-radius: 0; top: 0; bottom: 0; height: auto; width: 3px; }
+.code-editor .milkdown .ProseMirror.markdown-body table { font-size: 13px; line-height: 1.5; }
 
 .modal-backdrop {
   position: fixed;
@@ -885,7 +901,6 @@ details:not([open]) > #historyNotesList { display: none; }
 @media (max-width: 1080px) {
   :root { --left-width: 210px; --right-width: 290px; }
   .markdown-body { width: min(730px, calc(100% - 44px)); }
-  .code-editor { width: min(730px, calc(100% - 44px)); }
 }
 
 @media (max-width: 1240px) and (min-width: 1081px) {

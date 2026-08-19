@@ -10,7 +10,7 @@ import { placeholder } from '@milkdown/crepe/feature/placeholder';
 import { toolbar } from '@milkdown/crepe/feature/toolbar';
 import { codeMirror } from '@milkdown/crepe/feature/code-mirror';
 import { table } from '@milkdown/crepe/feature/table';
-import { editorViewCtx, remarkStringifyOptionsCtx } from '@milkdown/kit/core';
+import { editorViewCtx, editorViewOptionsCtx, remarkStringifyOptionsCtx } from '@milkdown/kit/core';
 import { replaceAll } from '@milkdown/kit/utils';
 // 样式同样按功能逐个引入(不用聚合的 common/style.css,它会连带 KaTeX 字体)
 import '@milkdown/crepe/theme/common/prosemirror.css';
@@ -58,6 +58,11 @@ function create(container, options = {}) {
     // 反推 Markdown 时尽量贴近中文文档的常见写法,减少保存后的格式噪音
     ctx.update(remarkStringifyOptionsCtx, (current) => ({
       ...current, bullet: '-', rule: '-', fence: '`', listItemIndent: 'one',
+    }));
+    // 正文挂 markdown-body,让编辑态直接复用阅读态的整套排版规则
+    ctx.update(editorViewOptionsCtx, (current) => ({
+      ...current,
+      attributes: { ...(current.attributes || {}), class: 'markdown-body' },
     }));
   });
   crepe.on((listener) => {
