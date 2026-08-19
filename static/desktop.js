@@ -16,7 +16,7 @@
     reviewStateText: $('#reviewStateText'), reviewCount: $('#reviewCount'), readingMode: $('#readingModeButton'),
     editingMode: $('#editingModeButton'), readerPane: $('#readerPane'), welcome: $('#welcome'), welcomeOpen: $('#welcomeOpenButton'),
     welcomeRecent: $('#welcomeRecent'), readerScroll: $('#readerScroll'), content: $('#documentContent'), editorPane: $('#editorPane'),
-    codeEditor: $('#codeEditor'), editorPreview: $('#editorPreview'), editorSaveState: $('#editorSaveState'), saveButton: $('#saveButton'),
+    codeEditor: $('#codeEditor'), editorSaveState: $('#editorSaveState'), saveButton: $('#saveButton'),
     finishManual: $('#finishManualButton'), notesTotal: $('#notesTotal'), openNotesCount: $('#openNotesCount'),
     historyNotesCount: $('#historyNotesCount'), openNotesList: $('#openNotesList'), historyNotesList: $('#historyNotesList'),
     historySection: $('#historySection'), annotate: $('#annotateButton'), annotationOverlay: $('#annotationOverlay'),
@@ -52,7 +52,6 @@
     dialog: null,
     editorView: null,
     editorTabId: null,
-    previewTimer: null,
     draftTimers: new Map(),
     draftWarningShown: false,
     renderingHistory: false,
@@ -1680,8 +1679,6 @@
     if (tab.dirty && !tab.saveRequestId) tab.saveRequestId = requestId('source');
     if (tab.dirty) scheduleDraft(tab); else clearDraft(tab);
     updateSaveState(tab);
-    if (state.previewTimer) clearTimeout(state.previewTimer);
-    state.previewTimer = setTimeout(() => void renderMarkdown(nodes.editorPreview, value, tab), 140);
     if (!tab.dirty && tab.remotePending) {
       const pending = tab.remotePending;
       void queueRemoteReviewChange(pending.reviewId || tab.id, pending);
@@ -1695,7 +1692,6 @@
     if (state.editorTabId !== tab.id) createEditor(tab);
     updateSaveState(tab);
     nodes.finishManual.hidden = !(tab.review.status === 'applying' && tab.review.applyMode === 'manual');
-    void renderMarkdown(nodes.editorPreview, getEditorValue(), tab);
     renderOutline(tab.outline);
   }
 

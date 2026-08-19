@@ -28,7 +28,8 @@ async function validatePinnedVersion(packageDir, expected) {
   }
 }
 
-async function buildCodeMirror() {
+async function buildEditor() {
+  // 入口里 import 的 CSS 会被 esbuild 一并打成同名的 mdturn-editor.css
   await build({
     entryPoints: [path.join(DESKTOP_DIR, 'src', 'editor-entry.js')],
     outfile: path.join(VENDOR_DIR, 'mdturn-editor.js'),
@@ -75,7 +76,7 @@ async function copyPhosphorAssets() {
 }
 
 await mkdir(VENDOR_DIR, { recursive: true });
-await buildCodeMirror();
+await buildEditor();
 const phosphor = await copyPhosphorAssets();
-console.log(`Vendor build complete: CodeMirror + ${phosphor.styleCount} Phosphor styles / ${phosphor.assetCount} assets.`);
+console.log(`Vendor build complete: Crepe editor + ${phosphor.styleCount} Phosphor styles / ${phosphor.assetCount} assets.`);
 

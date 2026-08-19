@@ -18,9 +18,8 @@
     "dist:win": "npm run build:vendor && electron-builder --win nsis --x64"
   },
   "devDependencies": {
-    "@codemirror/lang-markdown": "6.5.1",
+    "@milkdown/crepe": "7.22.1",
     "@phosphor-icons/web": "2.1.2",
-    "codemirror": "6.0.2",
     "electron": "43.1.1",
     "electron-builder": "26.15.3",
     "esbuild": "0.28.1"
@@ -43,9 +42,18 @@
       "package.json"
     ],
     "extraResources": [
-      { "from": "../server.js", "to": "mdturn-server/server.js" },
-      { "from": "../lib", "to": "mdturn-server/lib" },
-      { "from": "../static", "to": "mdturn-server/static" }
+      {
+        "from": "../server.js",
+        "to": "mdturn-server/server.js"
+      },
+      {
+        "from": "../lib",
+        "to": "mdturn-server/lib"
+      },
+      {
+        "from": "../static",
+        "to": "mdturn-server/static"
+      }
     ],
     "fileAssociations": [
       {
@@ -96,7 +104,12 @@
     },
     "win": {
       "target": [
-        { "target": "nsis", "arch": ["x64"] }
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "icon": "build/icon.ico"
     },

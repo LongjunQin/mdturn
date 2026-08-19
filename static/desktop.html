@@ -8,7 +8,8 @@
   <link rel="stylesheet" href="/static/vendor/highlight-github.min.css">
   <link rel="stylesheet" href="/static/vendor/katex.min.css">
   <link rel="stylesheet" href="/static/vendor/phosphor.css">
-  <link rel="stylesheet" href="/static/desktop.css?v=6">
+  <link rel="stylesheet" href="/static/vendor/mdturn-editor.css?v=5">
+  <link rel="stylesheet" href="/static/desktop.css?v=7">
 </head>
 <body>
   <div id="appShell" class="app-shell">
@@ -93,7 +94,7 @@
       <section id="editorPane" class="editor-pane" hidden aria-label="Markdown 编辑器">
         <div class="editor-toolbar">
           <div>
-            <strong>Markdown 编辑</strong>
+            <strong>编辑文档</strong>
             <span id="editorSaveState" class="save-state">所有更改均已保存</span>
           </div>
           <div class="editor-actions">
@@ -104,12 +105,8 @@
             <button id="finishManualButton" class="primary-button" type="button" hidden>提交修改</button>
           </div>
         </div>
-        <div class="editor-split">
+        <div class="editor-scroll">
           <div id="codeEditor" class="code-editor"></div>
-          <div class="preview-column">
-            <div class="preview-label">实时预览</div>
-            <article id="editorPreview" class="markdown-body editor-preview"></article>
-          </div>
         </div>
       </section>
     </section>
@@ -191,7 +188,7 @@
   <script src="/static/vendor/texmath.min.js"></script>
   <script src="/static/vendor/highlight.min.js"></script>
   <script src="/static/vendor/mermaid.min.js"></script>
-  <script src="/static/vendor/mdturn-editor.js?v=4"></script>
+  <script src="/static/vendor/mdturn-editor.js?v=5"></script>
   <script src="/static/desktop-anchor.js?v=4"></script>
   <script src="/static/desktop.js?v=7"></script>
 </body>

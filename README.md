@@ -70,7 +70,7 @@ When you and an agent write documents together, **you supply the judgment — MD
 ## More features · 更多功能
 
 - Formulas (KaTeX), Mermaid diagrams, syntax-highlighted code, tables and local images render fully. · 公式(KaTeX)、Mermaid 图、代码高亮、表格与本地图片完整渲染。
-- A separate edit mode (CodeMirror) with live preview, draft recovery, and note-by-note triage. · 独立编辑模式(CodeMirror):实时预览、草稿恢复、逐条处理批注。
+- A WYSIWYG edit mode (Milkdown) — edit the rendered document directly, no raw Markdown syntax; with draft recovery and note-by-note triage. · 所见即所得编辑模式(Milkdown):直接在排版后的文档上修改,不见 Markdown 符号;支持草稿恢复、逐条处理批注。
 - Version-conflict interception with SHA-256 verification — if the file changes mid-review, writing stops immediately. · 版本冲突拦截与 SHA-256 校验:审阅期间源文件一旦变化,立即停止写入。
 - System notification when the agent finishes while the app is in the background. · 智能体改稿完成时,App 在后台也会收到系统通知。
 
@@ -88,6 +88,6 @@ Issues and PRs welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). Windows 11 x6
 
 ## License · 开源许可
 
-MDTurn is released under the [MIT License](LICENSE). UI icons by [Phosphor Icons](https://phosphoricons.com/) (MIT); editor by [CodeMirror](https://codemirror.net/) (MIT); rendering by [markdown-it](https://github.com/markdown-it/markdown-it) (MIT), [KaTeX](https://katex.org/) (MIT), [Mermaid](https://mermaid.js.org/) (MIT), [highlight.js](https://highlightjs.org/) (BSD-3-Clause), [markdown-it-texmath](https://github.com/goessner/markdown-it-texmath) (MIT). Keep new dependencies license-compatible (MIT/BSD/Apache).
+MDTurn is released under the [MIT License](LICENSE). UI icons by [Phosphor Icons](https://phosphoricons.com/) (MIT); editor by [Milkdown](https://milkdown.dev/) (MIT) with [CodeMirror](https://codemirror.net/) (MIT) code blocks; rendering by [markdown-it](https://github.com/markdown-it/markdown-it) (MIT), [KaTeX](https://katex.org/) (MIT), [Mermaid](https://mermaid.js.org/) (MIT), [highlight.js](https://highlightjs.org/) (BSD-3-Clause), [markdown-it-texmath](https://github.com/goessner/markdown-it-texmath) (MIT). Keep new dependencies license-compatible (MIT/BSD/Apache).
 
 MDTurn 使用 [MIT License](LICENSE)。图标、编辑器与渲染依赖同上,均为 MIT/BSD 类许可;向仓库引入新依赖时请保持许可证兼容(MIT/BSD/Apache 类)。
