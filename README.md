@@ -14,15 +14,15 @@ Your agent hands you finished work all day long — project proposals, execution
 
 **macOS (Apple Silicon)** — click to download, that's it · 点击即可下载:
 
-### [⬇️ Download MDTurn for macOS (.dmg)](https://github.com/LongjunQin/mdturn/releases/download/v0.2.0/MDTurn-0.2.0-arm64.dmg)
+### [⬇️ Download MDTurn for macOS (.dmg)](https://github.com/LongjunQin/mdturn/releases/download/v0.3.0/MDTurn-0.3.0-arm64.dmg)
 
 Open the downloaded `.dmg`, drag **MDTurn** into **Applications**. First launch: right-click the app → **Open** (the beta is not yet notarized by Apple, this is expected).
 
 下载后打开 `.dmg`,把 **MDTurn** 拖进**应用程序**。首次启动请**右键 → 打开**(Beta 版尚未做 Apple 公证,提示"未验证开发者"属正常现象)。
 
-**Windows 11 x64 (Beta)** — [⬇️ Download the installer (.exe)](https://github.com/LongjunQin/mdturn/releases/download/v0.2.0/MDTurn-0.2.0-x64.exe). Unsigned beta: SmartScreen will warn about an unknown publisher — click "More info → Run anyway". Windows support was contributed by [@ArnaudJiang](https://github.com/ArnaudJiang).
+**Windows 11 x64 (Beta)** — [⬇️ Download the installer (.exe)](https://github.com/LongjunQin/mdturn/releases/download/v0.3.0/MDTurn-0.3.0-x64.exe). Unsigned beta: SmartScreen will warn about an unknown publisher — click "More info → Run anyway". Windows support was contributed by [@ArnaudJiang](https://github.com/ArnaudJiang).
 
-**Windows 11 x64(Beta)**——[⬇️ 下载安装包 (.exe)](https://github.com/LongjunQin/mdturn/releases/download/v0.2.0/MDTurn-0.2.0-x64.exe)。Beta 未做代码签名,SmartScreen 提示"未知发布者"属正常,点"仍要运行"即可。Windows 支持由 [@ArnaudJiang](https://github.com/ArnaudJiang) 贡献。
+**Windows 11 x64(Beta)**——[⬇️ 下载安装包 (.exe)](https://github.com/LongjunQin/mdturn/releases/download/v0.3.0/MDTurn-0.3.0-x64.exe)。Beta 未做代码签名,SmartScreen 提示"未知发布者"属正常,点"仍要运行"即可。Windows 支持由 [@ArnaudJiang](https://github.com/ArnaudJiang) 贡献。
 
 ## What is MDTurn · MDTurn 是什么
 
