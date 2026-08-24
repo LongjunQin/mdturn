@@ -151,6 +151,33 @@ test('高并发批注 POST 不丢失，同 clientRequestId 只写一条', async 
   assert.equal(notes.filter((note) => note.clientRequestId === 'same-request').length, 1);
 });
 
+test('总体意见:无锚点 + scope=document 可保存,非法 scope 被丢弃,且计入待处理', async (t) => {
+  const f = fixture(t);
+  const file = writeMd(f.docRoot, '总体意见.md');
+  const { review } = await store.openReview(file, { dataDir: f.dataDir });
+  const { port } = await startServer(t, f);
+
+  const docNote = await rawRequest(port, `/api/annotations?r=${review.id}`, {
+    method: 'POST', body: { comment: '整体架构不对，先讨论再改', scope: 'document', clientRequestId: 'doc-note' },
+  });
+  assert.equal(docNote.status, 200);
+  const bogusScope = await rawRequest(port, `/api/annotations?r=${review.id}`, {
+    method: 'POST', body: { comment: '带非法 scope 的普通批注', quote: '正文', scope: 'paragraph', clientRequestId: 'bogus-scope' },
+  });
+  assert.equal(bogusScope.status, 200);
+
+  const notes = store.readAnnotations(file).annotations;
+  const saved = notes.find((note) => note.clientRequestId === 'doc-note');
+  assert.equal(saved.scope, 'document');
+  assert.equal(saved.status, 'open');
+  assert.ok(!('quote' in saved) && !('lineStart' in saved), '总体意见不应带文字锚点');
+  assert.ok(!('scope' in notes.find((note) => note.clientRequestId === 'bogus-scope')), '非法 scope 应被丢弃');
+
+  // 只有一条总体意见时,提交本轮必须进入 ready_to_apply(交给智能体),而不是直接通过。
+  const submitted = await store.submitReview(review.id, { dataDir: f.dataDir });
+  assert.equal(submitted.review.status, 'ready_to_apply');
+});
+
 test('A、B 两篇文档同时审阅时，API 与 sidecar 批注互不串写', async (t) => {
   const f = fixture(t);
   const fileA = writeMd(f.docRoot, '项目 A/方案.md', '# A\nA 正文\n');

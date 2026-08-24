@@ -251,7 +251,7 @@ async function mutateReviewAnnotations(review, mutator) {
 function newNoteId() { return 'n' + crypto.randomBytes(6).toString('hex'); }
 const NOTE_FIELDS = [
   'comment', 'quote', 'prefix', 'suffix', 'headingPath', 'lineStart', 'lineEnd',
-  'startTextOffset', 'endTextOffset', 'figureRef', 'clientRequestId', 'anchorVersion',
+  'startTextOffset', 'endTextOffset', 'figureRef', 'clientRequestId', 'anchorVersion', 'scope',
 ];
 function buildNote(input, author, extra = {}) {
   const note = {};
@@ -264,6 +264,9 @@ function buildNote(input, author, extra = {}) {
           .slice(0, 12)
           .map((item) => String(item).slice(0, 200));
       }
+    } else if (field === 'scope') {
+      // 目前唯一合法取值:document(针对全篇的总体意见,无文字锚点)。
+      if (input.scope === 'document') note.scope = 'document';
     } else if (field === 'lineStart' || field === 'lineEnd' || field === 'startTextOffset' ||
         field === 'endTextOffset' || field === 'anchorVersion') {
       const value = Number(input[field]);

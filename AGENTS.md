@@ -47,6 +47,8 @@ mdreview status "<文档绝对路径.md>" --json
 3. **只处理 `status` 为 `open` 的批注。完全忽略 `applied` 和 `wontfix`。**
 4. 定位:**以 `quote`(原文引用)+ `headingPath`(章节)为主**来找到位置;`lineStart` 只作辅助
    (因为之前的修改可能已让行号偏移)。`figureRef` 表示该批注针对某图/表。
+   **`scope: "document"` 表示总体意见**:针对全篇、没有任何文字锚点。若它要求重写、调整
+   架构或"先讨论再改",**先与用户对齐方向再动笔**,不要自行大改;处理完同样标 applied/wontfix。
 5. 按 `comment` 修改源 `.md`。
 6. 每改完一条,就**就地把那条批注更新为**:
    ```json
@@ -82,6 +84,12 @@ mdreview status "<文档绝对路径.md>" --json
       "lineStart": 120, "lineEnd": 121,// 辅助:源行号(可能因改稿偏移)
       "figureRef": "图3",
       "status": "open"               // open=待处理 / applied=已改 / wontfix=不改
+    },
+    {
+      "id": "n…",
+      "comment": "整体架构不对，先别改，回来和我讨论章节划分",
+      "scope": "document",           // 总体意见:针对全篇,无 quote/行号锚点
+      "status": "open"
     }
   ]
 }

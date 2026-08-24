@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="/static/vendor/katex.min.css">
   <link rel="stylesheet" href="/static/vendor/phosphor.css">
   <link rel="stylesheet" href="/static/vendor/mdturn-editor.css?v=6">
-  <link rel="stylesheet" href="/static/desktop.css?v=8">
+  <link rel="stylesheet" href="/static/desktop.css?v=9">
 </head>
 <body>
   <div id="appShell" class="app-shell">
@@ -122,6 +122,10 @@
         </button>
       </div>
       <div id="notesContent" class="notes-content">
+        <button id="docNoteButton" class="doc-note-button" type="button" hidden>
+          <i class="ph ph-note-pencil" aria-hidden="true"></i>写总体意见
+          <span class="hint">针对全篇 · 不锚定文字</span>
+        </button>
         <section>
           <div class="notes-section-heading">
             <span><span class="status-dot open"></span>本轮未处理</span>
@@ -190,6 +194,6 @@
   <script src="/static/vendor/mermaid.min.js"></script>
   <script src="/static/vendor/mdturn-editor.js?v=6"></script>
   <script src="/static/desktop-anchor.js?v=4"></script>
-  <script src="/static/desktop.js?v=8"></script>
+  <script src="/static/desktop.js?v=9"></script>
 </body>
 </html>

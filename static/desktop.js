@@ -20,6 +20,7 @@
     finishManual: $('#finishManualButton'), notesTotal: $('#notesTotal'), openNotesCount: $('#openNotesCount'),
     historyNotesCount: $('#historyNotesCount'), openNotesList: $('#openNotesList'), historyNotesList: $('#historyNotesList'),
     historySection: $('#historySection'), annotate: $('#annotateButton'), annotationOverlay: $('#annotationOverlay'),
+    docNoteButton: $('#docNoteButton'),
     annotationDialog: $('#annotationDialog'), annotationDialogPanel: $('#annotationDialogPanel'),
     annotationDialogHandle: $('#annotationDialogDragHandle'),
     annotationTitle: $('#annotationDialogTitle'), annotationQuote: $('#annotationQuote'), annotationText: $('#annotationText'),
@@ -138,6 +139,7 @@
   function tabByPath(sourceFile) { return state.tabs.find((tab) => tab.review && tab.review.sourceFile === sourceFile) || null; }
   function effectiveStatus(note) { return Anchor ? Anchor.effectiveStatus(note) : (note.status || 'open'); }
   function openAnnotations(tab) { return (tab && tab.annotations || []).filter((note) => effectiveStatus(note) === 'open'); }
+  function isDocNote(note) { return !!note && note.scope === 'document'; }
 
   function normalizeBundle(bundle) {
     const review = bundle.review || {};
@@ -1365,6 +1367,7 @@
 
   function renderNotes(tab) {
     nodes.openNotesList.replaceChildren(); nodes.historyNotesList.replaceChildren();
+    nodes.docNoteButton.hidden = !tab || tab.review.status !== 'reviewing';
     if (!tab) {
       nodes.notesTotal.textContent = '0'; nodes.openNotesCount.textContent = '0'; nodes.historyNotesCount.textContent = '0';
       nodes.openNotesList.appendChild(emptyBlock('打开文档后，这里会显示当前轮次的批注。'));
@@ -1377,8 +1380,11 @@
     nodes.notesTotal.textContent = String(organized.totalCount);
     nodes.openNotesCount.textContent = String(organized.open.count);
     nodes.historyNotesCount.textContent = String(organized.history.count);
-    if (!organized.open.items.length) nodes.openNotesList.appendChild(emptyBlock('本轮还没有未处理批注。选中正文后点击“批注”。'));
-    else organized.open.items.forEach((note) => nodes.openNotesList.appendChild(noteCard(tab, note, false)));
+    // 总体意见(scope=document)固定置顶,组内仍保持最新在前。
+    const openItems = organized.open.items.slice()
+      .sort((left, right) => (isDocNote(right) ? 1 : 0) - (isDocNote(left) ? 1 : 0));
+    if (!openItems.length) nodes.openNotesList.appendChild(emptyBlock('本轮还没有批注。选中正文可划词批注；针对全篇的意见请点上方“写总体意见”。'));
+    else openItems.forEach((note) => nodes.openNotesList.appendChild(noteCard(tab, note, false)));
     if (!organized.history.items.length) nodes.historyNotesList.appendChild(emptyBlock('还没有历史批注。'));
     else organized.history.items.forEach((note) => nodes.historyNotesList.appendChild(noteCard(tab, note, true)));
   }
@@ -1390,10 +1396,13 @@
     const author = document.createElement('strong'); author.textContent = note.author || '我(本机)';
     const time = document.createElement('span'); time.className = 'note-time'; time.textContent = formatRelativeTime(note.createdAt || note.updatedAt);
     meta.append(author, time);
-    const quote = document.createElement('p'); quote.className = 'note-quote'; quote.textContent = `引用：“${String(note.quote || '').slice(0, 150)}”`;
+    const quote = document.createElement('p'); quote.className = 'note-quote';
+    if (isDocNote(note)) { quote.classList.add('doc-scope'); quote.textContent = '全篇 · 总体意见'; }
+    else quote.textContent = `引用：“${String(note.quote || '').slice(0, 150)}”`;
     const comment = document.createElement('p'); comment.className = 'note-comment'; comment.textContent = note.comment || '';
     const location = document.createElement('div'); location.className = 'note-location';
-    location.textContent = Array.isArray(note.headingPath) && note.headingPath.length ? note.headingPath.join(' › ') : '正文';
+    location.textContent = isDocNote(note) ? '全篇'
+      : Array.isArray(note.headingPath) && note.headingPath.length ? note.headingPath.join(' › ') : '正文';
     card.append(meta, quote, comment, location);
     if (historical) {
       const status = document.createElement('div'); const effective = effectiveStatus(note);
@@ -1432,6 +1441,8 @@
         const position = value.split('\n').slice(0, line - 1).reduce((total, part) => total + part.length + 1, 0);
         state.editorView.focus(); state.editorView.setSelectionRange(position, position);
       }
+    } else if (isDocNote(note)) {
+      nodes.readerScroll.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
       const leaves = mappedLeafBlocks(); const resolved = Anchor.resolveAnchor(note, blockDescriptors(leaves));
       if (resolved.matched && leaves[resolved.startBlockIndex]) {
@@ -1444,17 +1455,25 @@
     if (!options.scrollOnly) setTimeout(() => { tab.focusedNoteId = null; renderNotes(tab); }, 2600);
   }
 
-  function openAnnotationDialog({ anchor = null, note = null }) {
+  function openAnnotationDialog({ anchor = null, note = null, scope = null }) {
     const tab = activeTab(); if (!tab || tab.review.status !== 'reviewing') return;
+    const docScope = scope === 'document' || isDocNote(note);
     state.dialog = {
       tabId: tab.id,
       sourceHash: tab.sourceHash,
-      anchor: note ? null : anchor,
+      anchor: note || docScope ? null : anchor,
+      scope: docScope ? 'document' : null,
       noteId: note && note.id,
       requestId: note ? null : requestId('annotation'),
     };
-    nodes.annotationTitle.textContent = note ? '编辑批注' : '添加批注';
-    nodes.annotationQuote.textContent = `“${(note || anchor).quote || ''}”`;
+    nodes.annotationTitle.textContent = docScope
+      ? (note ? '编辑总体意见' : '写总体意见')
+      : (note ? '编辑批注' : '添加批注');
+    nodes.annotationQuote.hidden = docScope;
+    nodes.annotationQuote.textContent = docScope ? '' : `“${((note || anchor || {}).quote) || ''}”`;
+    nodes.annotationText.placeholder = docScope
+      ? '对整篇文档的意见：整体结构、方向、要不要重写、想先讨论什么……'
+      : '这段内容哪里需要修改？希望补充什么？';
     nodes.annotationText.value = note ? note.comment || '' : '';
     nodes.annotationSave.textContent = note ? '保存修改' : '保存批注';
     nodes.annotationDialog.hidden = false;
@@ -1586,6 +1605,7 @@
           reviewSessionId: tab.id,
           sourceHash: tab.review.sourceHash,
         };
+        if (dialog.scope === 'document') payload.scope = 'document';
         result = await requestJson(`/api/annotations?r=${encodeURIComponent(tab.id)}`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
         });
@@ -1786,9 +1806,11 @@
     const count = openAnnotations(tab).length;
     if (!options.skipConfirm) {
       const accepted = await confirmAction(
-        count ? '完成本轮审阅？' : '确认这篇文档无需修改？',
-        count ? `提交后原文继续保持只读，等待 Agent 或你手工处理 ${count} 条批注。` : '将记录为“审核通过”并解除本轮冻结。',
-        '完成本轮审阅',
+        count ? '完成本轮审阅？' : '审核通过，定稿？',
+        count
+          ? `提交后原文继续保持只读，等待 Agent 或你手工处理 ${count} 条批注。`
+          : '全文没有任何批注，将记录为“审核通过”，本轮结束。若想让智能体重写或先讨论，请取消，在右栏写一条总体意见再提交。',
+        count ? '完成本轮审阅' : '通过并定稿',
       );
       if (!accepted) return false;
     }
@@ -1862,6 +1884,7 @@
     nodes.finishManual.addEventListener('click', finishManualApply);
     nodes.saveButton.addEventListener('click', () => saveSource());
     nodes.annotationSave.addEventListener('click', saveAnnotation);
+    nodes.docNoteButton.addEventListener('click', () => openAnnotationDialog({ scope: 'document' }));
     nodes.annotationCancel.addEventListener('click', () => closeAnnotationDialog());
     nodes.annotationClose.addEventListener('click', () => closeAnnotationDialog());
     nodes.annotationDialog.addEventListener('pointerdown', (event) => { if (event.target === nodes.annotationDialog) closeAnnotationDialog(); });

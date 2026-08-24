@@ -76,7 +76,9 @@ complete）。从未读过本文档的 Agent 只要从 `mdreview open` 进入并
 1. 运行 `mdreview status`，确认状态（用了 wait 且退出码为 0 可跳过）；
 2. 读取 sidecar 中 `status=open` 的批注，对有歧义的先向用户提问确认；
 3. `ready_to_apply` 时运行 `mdreview begin-apply`；
-4. 逐条改稿，以 `quote + headingPath` 定位，标记 `applied/wontfix`，保留审计字段；
+4. 逐条改稿，以 `quote + headingPath` 定位，标记 `applied/wontfix`，保留审计字段。
+   带 `scope: "document"` 的批注是**总体意见**（针对全篇，无文字锚点）——若它要求重写、
+   调整架构或先讨论，先与用户对齐方向再动笔，闭环方式相同；
 5. 全部 open 清零后运行 `mdreview complete`。
 
 没有审阅会话的旧 sidecar 继续遵守原有 `open → applied/wontfix` 协议。
