@@ -667,21 +667,23 @@ kbd {
 .doc-note-button {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   width: calc(100% - 20px);
   margin: 12px 10px 2px;
-  padding: 9px 12px;
-  border: 1px dashed var(--line-strong);
-  border-radius: 8px;
-  background: transparent;
-  color: #4c5668;
-  font-size: 12px;
-  font-weight: 650;
+  padding: 11px 13px;
+  border: 1px solid #9dc2f7;
+  border-radius: 9px;
+  background: var(--blue-soft);
+  color: var(--blue);
+  font-size: 13px;
+  font-weight: 700;
   cursor: pointer;
   text-align: left;
+  box-shadow: 0 1px 2px rgba(11, 109, 242, .08);
 }
-.doc-note-button:hover { border-color: var(--amber); background: var(--amber-pale); color: #5a5144; }
-.doc-note-button .hint { margin-left: auto; color: var(--muted-2); font-size: 10px; font-weight: 400; white-space: nowrap; }
+.doc-note-button i { font-size: 16px; }
+.doc-note-button:hover { border-color: var(--blue); background: #ddebff; }
+.doc-note-button .hint { margin-left: auto; color: #6d9bdd; font-size: 10px; font-weight: 500; white-space: nowrap; }
 
 .note-quote.doc-scope { color: #9a6a1f; font-weight: 700; }
 
