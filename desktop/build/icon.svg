@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+ <defs>
+  <clipPath id="cc"><rect width="1024" height="1024" rx="232"/></clipPath>
+  <linearGradient id="gc" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4d9dff"/><stop offset="1" stop-color="#1a5fd6"/></linearGradient>
+  <linearGradient id="fold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#c9dcfa"/></linearGradient>
+  <filter id="sh" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="-10" dy="14" stdDeviation="14" flood-color="#062a6b" flood-opacity=".45"/></filter>
+ </defs>
+ <g clip-path="url(#cc)">
+  <rect width="1024" height="1024" fill="url(#gc)"/>
+  <polygon points="690,0 1024,0 1024,334" fill="#0c3d96"/>
+  <polygon points="690,0 1024,334 690,334" fill="url(#fold)" filter="url(#sh)"/>
+  <g stroke="#fff" stroke-width="48" stroke-linecap="round" opacity=".96">
+   <line x1="140" y1="250" x2="560" y2="250"/>
+   <line x1="140" y1="400" x2="884" y2="400"/>
+   <line x1="140" y1="550" x2="884" y2="550"/>
+   <line x1="140" y1="700" x2="800" y2="700"/>
+   <line x1="140" y1="850" x2="500" y2="850"/>
+  </g>
+  <ellipse cx="512" cy="550" rx="410" ry="92" fill="none" stroke="#ff4a4a" stroke-width="34" stroke-linecap="round" stroke-dasharray="1690 160" stroke-dashoffset="1750" transform="rotate(-2 512 550)"/>
+ </g>
+</svg>
