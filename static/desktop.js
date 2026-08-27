@@ -7,7 +7,7 @@
   const bridge = window.mdturnDesktop || null;
 
   const nodes = {
-    shell: $('#appShell'), tabList: $('#tabList'), openTabButton: $('#openTabButton'), primaryAction: $('#primaryAction'),
+    shell: $('#appShell'), tabList: $('#tabList'), openTabButton: $('#openTabButton'), primaryAction: $('#primaryAction'), finalizeAction: $('#finalizeAction'),
     left: $('#leftSidebar'), right: $('#rightSidebar'), collapseLeft: $('#collapseLeft'), expandLeft: $('#expandLeft'),
     collapseRight: $('#collapseRight'), expandRight: $('#expandRight'), toggleLeftTop: $('#toggleLeftTop'),
     toggleRightTop: $('#toggleRightTop'), outlineMode: $('#outlineModeButton'), filesMode: $('#filesModeButton'),
@@ -34,7 +34,8 @@
     ready_to_apply: { text: '等待修改 · 批注已提交', detail: '可以等待 Agent，或开始手工修改。', icon: 'ph-hourglass-medium' },
     applyingAgent: { text: 'Agent 修改中 · 文档暂时只读', detail: '修改完成后会自动刷新。', icon: 'ph-robot' },
     applyingManual: { text: '手工修改中 · 请逐条处理批注', detail: '所有未处理批注清零后才能提交。', icon: 'ph-pencil-simple-line' },
-    complete: { text: '修改已完成 · 已加载最新版', detail: '可以开始下一轮审阅。', icon: 'ph-check-circle' },
+    manualEdit: { text: '手工修改中 · 改完点「提交修改」', detail: '这轮没有批注，你直接改；提交后本轮结束。期间智能体不会碰这篇文档。', icon: 'ph-pencil-simple-line' },
+    complete: { text: '修改已完成 · 已加载最新版', detail: '可以开始下一轮审阅，或点右上「定稿并关闭」结束。', icon: 'ph-check-circle' },
     conflict: { text: '版本冲突 · 已停止写入', detail: '需要先处理冲突。', icon: 'ph-warning-circle' },
     cancelled: { text: '审阅已取消', detail: '本轮已人工结束。', icon: 'ph-x-circle' },
   };
@@ -113,7 +114,7 @@
       return `${action}未完成：文档版本已经变化。你的输入仍保留，请先处理版本冲突。`;
     }
     if (error.code === 'review_read_only' || error.code === 'source_write_not_allowed' || error.status === 423) {
-      return `${action}未完成：当前审阅状态不允许写入。`;
+      return `${action}未完成：文档已被重新冻结（通常是智能体开启了新一轮审阅）。你的修改仍保留在编辑器里，没有丢失；可复制留用，或等这一轮结束后再改。`;
     }
     if (error.status === 404) return `${action}未完成：文档或审阅会话已经失效。`;
     if (error.status === 0) return `${action}未完成：本地服务不可达。`;
@@ -309,7 +310,8 @@
 
   function statusDescriptor(review = {}) {
     if (review.status === 'applying') {
-      return review.applyMode === 'manual' ? STATUS.applyingManual : STATUS.applyingAgent;
+      if (review.applyMode !== 'manual') return STATUS.applyingAgent;
+      return review.round === 'manual-edit' ? STATUS.manualEdit : STATUS.applyingManual;
     }
     return STATUS[review.status] || { text: `未知状态：${review.status || 'unknown'}`, detail: '无法识别当前状态。', icon: 'ph-question' };
   }
@@ -762,6 +764,7 @@
       nodes.readerScroll.hidden = true;
       nodes.editorPane.hidden = true;
       nodes.primaryAction.hidden = true;
+      nodes.finalizeAction.hidden = true;
       renderOutline([]);
       renderNotes(null);
       return;
@@ -831,6 +834,7 @@
     else if (review.status === 'applying' && review.applyMode === 'manual') nodes.primaryAction.textContent = '提交修改';
     else if (review.status === 'complete' || review.status === 'cancelled') nodes.primaryAction.textContent = '开始新一轮审阅';
     else nodes.primaryAction.hidden = true;
+    nodes.finalizeAction.hidden = !(review.status === 'complete' && review.outcome !== 'finalized' && tab.mode !== 'edit');
   }
 
   function renderReader(tab) {
@@ -1781,6 +1785,15 @@
       if (!submitted) return;
       tab = activeTab();
     }
+    if (tab.review.status === 'complete' || tab.review.status === 'cancelled') {
+      // 终态之后进编辑 = 开一轮"手工修改轮"(applying/manual),把写者身份记进会话,
+      // 智能体此时 mdreview open 会看到用户正在改,不会把文档重新冻结。
+      try {
+        const result = await requestJson(`/api/app/review/manual-edit?r=${encodeURIComponent(tab.id)}`, { method: 'POST' });
+        const bundle = await fetchBundle(result.review.id);
+        tab = upsertTab(bundle, { activate: true });
+      } catch (error) { toast(friendlyError(error, '进入编辑'), 'error'); return; }
+    }
     if (tab.review.status === 'ready_to_apply') {
       try {
         const result = await requestJson(`/api/app/review/begin-apply?r=${encodeURIComponent(tab.id)}`, {
@@ -1837,6 +1850,23 @@
     } catch (error) { toast(friendlyError(error, '提交修改'), 'error'); }
   }
 
+  async function finalizeAndClose() {
+    const tab = activeTab(); if (!tab || tab.review.status !== 'complete') return;
+    const accepted = await confirmAction('定稿并关闭？',
+      '将把这一版记录为终稿：正在等待的智能体会收到"审阅结束"，标签页随即关闭。以后仍可从"最近审阅"重新打开、开始新一轮。',
+      '定稿并关闭');
+    if (!accepted) return;
+    nodes.finalizeAction.disabled = true;
+    try {
+      const result = await requestJson(`/api/app/review/finalize?r=${encodeURIComponent(tab.id)}`, { method: 'POST' });
+      tab.review = result.review;
+      toast('已定稿，智能体已收到通知。');
+      await closeTab(tab.id);
+      void refreshRecents();
+    } catch (error) { toast(friendlyError(error, '定稿'), 'error'); void refreshTab(tab, { silent: true }); }
+    finally { nodes.finalizeAction.disabled = false; }
+  }
+
   async function startNextRound() {
     const tab = activeTab(); if (!tab) return;
     if (tab.dirty && !(await saveSource(tab))) return;
@@ -1881,6 +1911,7 @@
     nodes.readingMode.addEventListener('click', () => { void enterReadMode(); });
     nodes.editingMode.addEventListener('click', enterEditMode);
     nodes.primaryAction.addEventListener('click', handlePrimaryAction);
+    nodes.finalizeAction.addEventListener('click', () => { void finalizeAndClose(); });
     nodes.finishManual.addEventListener('click', finishManualApply);
     nodes.saveButton.addEventListener('click', () => saveSource());
     nodes.annotationSave.addEventListener('click', saveAnnotation);

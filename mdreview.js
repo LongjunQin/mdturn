@@ -20,7 +20,7 @@ function usage() {
     '用法:',
     '  mdreview open <绝对路径.md> [--no-open]',
     '  mdreview status <绝对路径.md> [--json]',
-    '  mdreview wait <绝对路径.md> [--timeout-minutes <n>]  # 阻塞等待用户点击「完成本轮审阅」',
+    '  mdreview wait <绝对路径.md> [--timeout-minutes <n>]  # 阻塞等待用户下一个动作(提交批注/定稿/手工改完),可跨轮',
     '  mdreview begin-apply <绝对路径.md>',
     '  mdreview complete <绝对路径.md>',
     '  mdreview unlock <绝对路径.md> --reason "<原因>"',
@@ -181,7 +181,12 @@ async function commandOpen(args) {
   const { review, reused, recovered } = await openReview(args.file);
   printReview(review);
   if (recovered) console.log('检测到旧会话冲突且批注已全部处理,已自动结束旧会话。');
-  console.log(reused ? '已复用现有审阅会话。' : '已冻结文档并创建审阅会话。');
+  if (review.status === 'applying' && review.applyMode === 'manual') {
+    console.log('用户正在 MDTurn 里手工修改这篇文档,未创建新一轮。');
+    console.log(`→ Agent 下一步: 不要改这个文件。以后台任务挂起 mdreview wait "${review.absPath}",它会在用户提交修改后返回;届时若还需要用户审阅,再重新 mdreview open。`);
+    return;
+  }
+  console.log(reused ? '已复用现有审阅会话(用户尚未提交)。' : '已冻结文档并创建审阅会话。');
   console.log(`→ Agent 下一步: 立即以后台任务挂起 mdreview wait "${review.absPath}",阻塞至用户点击「完成本轮审阅」;用户不会回到对话里通报。审阅期间禁止绕过 mdreview 直接修改该文档。`);
   if (args.noOpen) return;
 
@@ -220,9 +225,18 @@ async function commandStatus(args) {
   printReview(review);
 }
 
-// 阻塞等待用户在 MDTurn 里点击「完成本轮审阅」。设计给智能体后台挂起使用:
-// 命令退出即代表审阅有了结果,智能体被唤醒后按退出码分流,无需用户回到对话里通报。
-// 退出码: 0=批注已提交(或全文通过) 2=会话被取消/冲突/丢失 3=等待超时
+// 阻塞等待用户在 MDTurn 里的下一个动作。设计给智能体后台挂起使用:命令退出即代表
+// 用户有了新动作,智能体被唤醒后按输出分流,无需用户回到对话里通报。
+// 跨轮语义:wait 不会因为"启动时已处于的状态"而退出——上一轮 complete 后继续挂着,
+// 直到用户开始新一轮并提交批注、定稿、或手工改完;这样 open/complete 之后各挂一次
+// wait 就不会漏掉任何一轮。
+// 退出码: 0=用户有了新动作(批注已提交/全文通过/已定稿/手工改完/别处已开始改稿)
+//         2=会话被取消/冲突/丢失 3=等待超时
+function sameState(a, b) {
+  return !!a && !!b && a.id === b.id && a.status === b.status &&
+    (a.outcome || '') === (b.outcome || '') && (a.applyMode || '') === (b.applyMode || '');
+}
+
 async function commandWait(args) {
   if (!args.file) throw new ReviewStoreError('BAD_ARGUMENT', usage(), { httpStatus: 400 });
   const absPath = path.resolve(args.file);
@@ -232,36 +246,60 @@ async function commandWait(args) {
   if (!initial) {
     throw new ReviewStoreError('NO_ACTIVE_REVIEW', `该文档没有活动审阅会话,请先 mdreview open: ${absPath}`, { httpStatus: 404 });
   }
-  console.log(`等待用户完成审阅: ${absPath}`);
-  console.log(`会话: ${initial.id}(当前状态 ${initial.status})`);
+  console.log(`等待用户的下一个动作: ${absPath}`);
+  console.log(`会话: ${initial.id}(当前状态 ${initial.status}${initial.applyMode ? '/' + initial.applyMode : ''})`);
+  if (initial.status === 'complete' && !['approved', 'finalized'].includes(initial.outcome || '')) {
+    console.log('本轮已闭环,继续等待:用户可能在 MDTurn 里开始新一轮审阅,也可能定稿并关闭。');
+  }
+  let announced = initial.id;
   for (;;) {
     const review = await getReviewByPath(absPath);
     const status = review ? review.status : 'untracked';
-    if (status === 'ready_to_apply') {
+    if (sameState(initial, review)) {
+      if (Date.now() >= deadline) {
+        fail(`等待超时(${args.timeoutMinutes || 480} 分钟),用户尚未有新动作。→ 可再次运行 mdreview wait "${absPath}" 继续等待,或 mdreview status 查看现状。`, 3);
+        return;
+      }
+      await new Promise((resolve) => setTimeout(resolve, pollMs));
+      continue;
+    }
+    if (status === 'reviewing') {
+      if (announced !== review.id) { announced = review.id; console.log(`用户已开始新一轮审阅(会话 ${review.id}),继续等待其提交。`); }
+    } else if (status === 'applying' && review.applyMode === 'manual') {
+      if (announced !== review.id) { announced = review.id; console.log(`用户正在 MDTurn 里手工修改(会话 ${review.id}),继续等待其提交;期间不要改这个文件。`); }
+    } else if (status === 'ready_to_apply') {
       printReview(review);
       console.log(`→ 用户已完成批注。先读 ${absPath}.annotations.json 中 status=open 的批注(有歧义先向用户逐条确认,一次一个问题);修改源文件前必须先运行 mdreview begin-apply "${absPath}",否则触发版本冲突。`);
       return;
-    }
-    if (status === 'complete') {
-      printReview(review);
-      console.log(review.outcome === 'approved'
-        ? '用户已完成本轮审阅: 全文通过,没有批注,无需改稿。'
-        : '本轮审阅已在别处走完闭环,无需再处理。');
-      return;
-    }
-    if (status === 'applying') {
+    } else if (status === 'applying') {
       printReview(review);
       console.log(`→ 本轮已进入改稿阶段(begin-apply 已在别处运行)。处理 ${absPath}.annotations.json 中 status=open 的批注,逐条标 applied/wontfix,全部清零后运行 mdreview complete "${absPath}"。`);
       return;
-    }
-    if (status !== 'reviewing') {
+    } else if (status === 'complete') {
+      if (review.outcome === 'finalized') {
+        printReview(review);
+        console.log('→ 用户已定稿并关闭文档,审阅结束。不要再挂 wait,也不要再改这个文件;向用户汇报即可。');
+        return;
+      }
+      if (review.outcome === 'approved') {
+        printReview(review);
+        console.log('→ 用户已完成本轮审阅: 全文通过,没有批注,无需改稿。若用户后续还要修改,会在 MDTurn 里开始新一轮,可再挂一次 wait。');
+        return;
+      }
+      if (review.applyMode === 'manual') {
+        printReview(review);
+        console.log(`→ 用户已手工改完并提交,文件内容已更新(改前请重新读取)。若还需要用户审阅,重新 mdreview open "${absPath}";否则不必再操作。`);
+        return;
+      }
+      if (announced !== review.id) { announced = review.id; console.log('本轮已闭环,继续等待用户开始新一轮或定稿。'); }
+    } else {
       const label = { conflict: '版本冲突', cancelled: '审阅被取消', untracked: '审阅会话丢失' }[status] || `状态异常(${status})`;
       if (review) printReview(review);
       fail(`等待异常结束: ${label}。→ 先运行 mdreview status "${absPath}" 查明情况,再决定下一步。`, 2);
       return;
     }
     if (Date.now() >= deadline) {
-      fail(`等待超时(${args.timeoutMinutes || 480} 分钟),用户尚未完成审阅。→ 可再次运行 mdreview wait "${absPath}" 继续等待,或 mdreview status 查看现状。`, 3);
+      fail(`等待超时(${args.timeoutMinutes || 480} 分钟),用户尚未有新动作。→ 可再次运行 mdreview wait "${absPath}" 继续等待,或 mdreview status 查看现状。`, 3);
       return;
     }
     await new Promise((resolve) => setTimeout(resolve, pollMs));
@@ -294,7 +332,7 @@ async function main() {
       // delivery failure into a failed completion command.
       const review = await completeReview(args.file);
       printReview(review);
-      console.log('→ 闭环完成: 批注已全部处理,MDTurn 会自动加载最新版并通知用户;本轮无需再做任何 mdreview 操作。');
+      console.log(`→ 闭环完成(本轮): 批注已全部处理,MDTurn 会自动加载最新版并通知用户。用户接下来可能再审一轮或定稿——立即再以后台任务挂起 mdreview wait "${review.absPath}",它会在用户提交新批注或定稿时返回;不要主动去关 MDTurn 里的标签或移动 .annotations.json。`);
       await notifyReviewChangedBestEffort(review, 'agent-complete');
       return;
     }

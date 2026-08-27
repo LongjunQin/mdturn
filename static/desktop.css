@@ -948,3 +948,6 @@ details:not([open]) > #historyNotesList { display: none; }
     max-height: calc(100vh - 24px);
   }
 }
+
+.finalize-button { white-space: nowrap; }
+.finalize-button i { font-size: 15px; margin-right: 4px; vertical-align: -2px; }

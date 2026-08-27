@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="/static/vendor/katex.min.css">
   <link rel="stylesheet" href="/static/vendor/phosphor.css">
   <link rel="stylesheet" href="/static/vendor/mdturn-editor.css?v=6">
-  <link rel="stylesheet" href="/static/desktop.css?v=10">
+  <link rel="stylesheet" href="/static/desktop.css?v=11">
 </head>
 <body>
   <div id="appShell" class="app-shell">
@@ -28,6 +28,9 @@
         </button>
         <button id="toggleRightTop" class="icon-button" type="button" title="显示或收起批注" aria-label="显示或收起批注">
           <i class="ph ph-notepad" aria-hidden="true"></i>
+        </button>
+        <button id="finalizeAction" class="secondary-button finalize-button" type="button" hidden title="确认这版就是终稿:通知智能体审阅结束并关闭标签页">
+          <i class="ph ph-check-circle" aria-hidden="true"></i>定稿并关闭
         </button>
         <button id="primaryAction" class="primary-button" type="button" hidden>完成本轮审阅</button>
       </div>
@@ -194,6 +197,6 @@
   <script src="/static/vendor/mermaid.min.js"></script>
   <script src="/static/vendor/mdturn-editor.js?v=6"></script>
   <script src="/static/desktop-anchor.js?v=4"></script>
-  <script src="/static/desktop.js?v=9"></script>
+  <script src="/static/desktop.js?v=10"></script>
 </body>
 </html>

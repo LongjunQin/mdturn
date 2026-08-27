@@ -532,6 +532,19 @@ async function handleAppApi(req, res, pathname, q) {
     const result = await documents.patchAnnotation(ref, q.get('id'), body);
     return sendJson(res, 200, { ok: true, ...result });
   }
+  if (pathname === '/api/app/review/finalize') {
+    if (!allowMethods(req, res, ['POST'])) return;
+    const review = await store.finalizeReview(ref);
+    await publishReviewChangedSafe(review.id, 'review-finalized');
+    return sendJson(res, 200, { ok: true, review: await reviewSummary(review) });
+  }
+  if (pathname === '/api/app/review/manual-edit') {
+    if (!allowMethods(req, res, ['POST'])) return;
+    const existing = await documents.requireReview(ref);
+    const review = await store.beginManualEdit(existing.absPath, { applyActor: '我(本机)' });
+    await publishReviewChangedSafe(review.id, 'manual-edit-started');
+    return sendJson(res, 200, { ok: true, review: await reviewSummary(review) });
+  }
   if (pathname === '/api/app/review/complete') {
     if (!allowMethods(req, res, ['POST'])) return;
     const existing = await documents.requireReview(ref);

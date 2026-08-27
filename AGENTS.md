@@ -19,6 +19,10 @@ mdreview open "<文档绝对路径.md>"
 - 未安装 MDTurn 时命令会报错并给出安装指引（会话仍已创建，安装后重跑即可）；`--no-open` 只创建会话、不唤起 App。
 - 阅读与批注处于同一个冻结模式；只有提交审阅后才能进入独立编辑模式。
 - `open` 之后立即以后台任务挂起 `mdreview wait`，等用户点击「完成本轮审阅」自动唤醒。
+- **`wait` 可跨轮**：它不会因启动时已处于的状态退出。`mdreview complete` 之后**必须再挂一次 `wait`**——用户接下来可能在 App 里「开始新一轮审阅」再提交批注，也可能点「定稿并关闭」；两者都只有挂着的 `wait` 才收得到。不挂就会漏掉用户的下一轮（用户不会回对话里通报）。
+- `wait` 退出时输出会说明是哪种动作：有新批注（去 begin-apply）/ 全文通过 / **已定稿（审阅结束，停止等待）** / 用户手工改完（文件已变，需再审就重新 open）。
+- `open` 时若输出"用户正在 MDTurn 里手工修改"，说明用户自己在编辑这篇文档：不要改文件，挂 `wait` 等其提交。
+- 不要替用户关 MDTurn 里的标签页（CLI 没有这个能力，用户会自己点「定稿并关闭」），也不要移动或删除 `.annotations.json`。
 
 ### Agent 修改冻结文档的纪律
 
@@ -32,7 +36,7 @@ mdreview status "<文档绝对路径.md>" --json
 - `ready_to_apply` 且用户要求按批注改稿：先运行 `mdreview begin-apply`，再只处理 `status=open` 的批注。
 - 改完并更新 sidecar 后运行 `mdreview complete`；仍有 open 时该命令会拒绝完成。
 - `mdreview complete` 会在终态原子落盘后主动通知 MDTurn 刷新对应标签；不要要求用户手工刷新，也不要为此频繁重复调用状态查询。
-- `applying` 表示上一轮改稿可能中断，应继续核对剩余 open，而不是重新开始审阅。
+- `applying/agent` 表示上一轮改稿可能中断，应继续核对剩余 open，而不是重新开始审阅；`applying/manual` 表示用户正在手工修改，禁止改文件。
 - 异常放弃审阅只能运行 `mdreview unlock <文件> --reason <原因>`，不得直接删 `reviews.json`。
 - 没有审阅会话的旧文档按下文原协议处理。
 
@@ -60,7 +64,7 @@ mdreview status "<文档绝对路径.md>" --json
    写回 sidecar 文件(保留其它批注与字段不动)。
 7. 决定不改的,可标 `"status": "wontfix"` 并加一句 `appliedNote` 说明原因。
 8. **绝不改动或重做任何 `status:applied` 的批注**——那是上一轮已完成的。
-9. 活动会话处于 `applying` 时，全部 open 清零后运行 `mdreview complete <文档>`。
+9. 活动会话处于 `applying` 时，全部 open 清零后运行 `mdreview complete <文档>`，然后**再次后台挂起 `mdreview wait`** 等用户的下一轮或定稿。
 
 完成后向用户汇报:本轮处理了几条 `open`、跳过了几条已完成、分别改了什么。
 

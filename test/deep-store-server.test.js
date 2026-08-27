@@ -178,6 +178,46 @@ test('总体意见:无锚点 + scope=document 可保存,非法 scope 被丢弃,�
   assert.equal(submitted.review.status, 'ready_to_apply');
 });
 
+test('定稿并关闭 / 手工修改轮:App 接口在 complete 之后可定稿,可直接开 applying/manual 轮并允许写入', async (t) => {
+  const f = fixture(t);
+  const file = writeMd(f.docRoot, '定稿.md', '# 定稿\n正文\n');
+  const { review } = await store.openReview(file, { dataDir: f.dataDir });
+  const { port } = await startServer(t, f);
+
+  // reviewing 时不可定稿
+  const early = await rawRequest(port, `/api/app/review/finalize?r=${review.id}`, { method: 'POST' });
+  assert.notEqual(early.status, 200);
+
+  // 零批注提交 -> complete/approved
+  const submitted = await store.submitReview(review.id, { dataDir: f.dataDir });
+  assert.equal(submitted.review.status, 'complete');
+
+  // complete 之后进编辑 = 手工修改轮
+  const manual = await rawRequest(port, `/api/app/review/manual-edit?r=${review.id}`, { method: 'POST' });
+  assert.equal(manual.status, 200, JSON.stringify(manual.json));
+  assert.equal(manual.json.review.status, 'applying');
+  assert.equal(manual.json.review.applyMode, 'manual');
+  assert.notEqual(manual.json.review.id, review.id, '手工修改轮应是新会话');
+  const manualId = manual.json.review.id;
+
+  // 该轮可以写正文
+  const bundle = await rawRequest(port, `/api/app/bundle?r=${manualId}`);
+  assert.equal(bundle.status, 200);
+  const written = await rawRequest(port, `/api/app/source?r=${manualId}`, {
+    method: 'PUT', body: { content: '# 定稿\n用户改过\n', expectedHash: bundle.json.source.hash, clientRequestId: 'w1' },
+  });
+  assert.equal(written.status, 200, JSON.stringify(written.json));
+  assert.equal(fs.readFileSync(file, 'utf8'), '# 定稿\n用户改过\n');
+
+  // 用户「提交修改」-> complete;然后定稿
+  const done = await rawRequest(port, `/api/app/review/complete?r=${manualId}`, { method: 'POST' });
+  assert.equal(done.status, 200, JSON.stringify(done.json));
+  const fin = await rawRequest(port, `/api/app/review/finalize?r=${manualId}`, { method: 'POST' });
+  assert.equal(fin.status, 200, JSON.stringify(fin.json));
+  assert.equal(fin.json.review.outcome, 'finalized');
+  assert.equal((await store.getReviewById(manualId, { dataDir: f.dataDir })).outcome, 'finalized');
+});
+
 test('A、B 两篇文档同时审阅时，API 与 sidecar 批注互不串写', async (t) => {
   const f = fixture(t);
   const fileA = writeMd(f.docRoot, '项目 A/方案.md', '# A\nA 正文\n');
