@@ -186,6 +186,8 @@ async function commandOpen(args) {
     console.log(`→ Agent 下一步: 不要改这个文件。以后台任务挂起 mdreview wait "${review.absPath}",它会在用户提交修改后返回;届时若还需要用户审阅,再重新 mdreview open。`);
     return;
   }
+  // 兜底通道:通过本地服务事件流让运行中的 App 直接打开该标签(与下面的 open -a 并行,任一条通即可)
+  const notified = await notifyReviewChangedBestEffort(review, 'cli-open');
   console.log(reused ? '已复用现有审阅会话(用户尚未提交)。' : '已冻结文档并创建审阅会话。');
   console.log(`→ Agent 下一步: 立即以后台任务挂起 mdreview wait "${review.absPath}",阻塞至用户点击「完成本轮审阅」;用户不会回到对话里通报。审阅期间禁止绕过 mdreview 直接修改该文档。`);
   if (args.noOpen) return;
@@ -206,7 +208,7 @@ async function commandOpen(args) {
     const detail = (appOpened.stderr || appOpened.error?.message || '').trim();
     throw new ReviewStoreError('APP_OPEN_FAILED', `无法打开 MDTurn${detail ? `: ${detail}` : ''}`, { httpStatus: 500 });
   }
-  console.log('已在 MDTurn 中打开,等待用户审阅。');
+  console.log(notified ? '已在 MDTurn 中打开(App 已收到打开通知),等待用户审阅。' : '已在 MDTurn 中打开,等待用户审阅。');
 }
 
 async function commandStatus(args) {

@@ -624,6 +624,13 @@
     try { payload = JSON.parse(event.data || '{}'); } catch { return; }
     const reviewId = payload.reviewSessionId || payload.reviewId || payload.sessionId;
     if (typeof reviewId !== 'string' || !reviewId) return;
+    // CLI 的 mdreview open 走事件流直接把标签打开——不依赖 macOS 的"打开文件"事件,
+    // 两条通道任一条通就能进文档。
+    if (payload.reason === 'cli-open') {
+      if (state.tabs.some((tab) => tab.id === reviewId)) activateTab(reviewId);
+      else void openReviewId(reviewId);
+      return;
+    }
     void queueRemoteReviewChange(reviewId, {
       reason: payload.reason || 'review-changed',
       forceSource: ['agent-complete', 'manual-complete', 'review-approved', 'review-completed', 'complete'].includes(payload.reason),
