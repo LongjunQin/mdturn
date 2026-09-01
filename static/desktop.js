@@ -944,11 +944,58 @@
     return leading ? `/${joined}` : joined;
   }
 
+  // 紧凑列表项这类"自己带文字、肚子里又嵌子块"的元素(如带子列表的 li),
+  // 裸露在块里的行内文字不属于任何叶子块,划词批注会静默失效。把每段裸
+  // 文字包进带行号的 span,使其成为可批注的叶子块;行号取前后相邻已映射
+  // 子块的行号夹逼推断。
+  function adoptBareInlineRuns(root) {
+    const lineRangeOf = (node) => {
+      if (node.dataset && node.dataset.lineStart) return [Number(node.dataset.lineStart), Number(node.dataset.lineEnd)];
+      const mapped = node.querySelectorAll?.('[data-line-start]');
+      if (!mapped || !mapped.length) return [NaN, NaN];
+      return [Number(mapped[0].dataset.lineStart), Number(mapped[mapped.length - 1].dataset.lineEnd)];
+    };
+    const isMappedBlock = (node) => node.nodeType === Node.ELEMENT_NODE
+      && (node.hasAttribute('data-line-start') || Boolean(node.querySelector('[data-line-start]')));
+    $$('[data-line-start]', root).forEach((host) => {
+      if (!host.querySelector('[data-line-start]')) return;
+      const hostStart = Number(host.dataset.lineStart), hostEnd = Number(host.dataset.lineEnd);
+      const runs = [];
+      let current = null, lastMapped = null;
+      Array.from(host.childNodes).forEach((node) => {
+        if (isMappedBlock(node)) { current = null; lastMapped = node; return; }
+        if (!current) { current = { nodes: [], before: lastMapped, after: null }; runs.push(current); }
+        current.nodes.push(node);
+      });
+      runs.forEach((run) => {
+        const index = run.nodes.length ? Array.prototype.indexOf.call(host.childNodes, run.nodes[run.nodes.length - 1]) : -1;
+        for (let i = index + 1; i >= 0 && i < host.childNodes.length; i += 1) {
+          if (isMappedBlock(host.childNodes[i])) { run.after = host.childNodes[i]; break; }
+        }
+        if (!run.nodes.some((node) => (node.textContent || '').trim())) return;
+        let start = run.before ? lineRangeOf(run.before)[1] + 1 : hostStart;
+        let end = run.after ? lineRangeOf(run.after)[0] - 1 : hostEnd;
+        if (!Number.isFinite(start)) start = hostStart;
+        if (!Number.isFinite(end)) end = hostEnd;
+        start = Math.min(Math.max(start, hostStart), hostEnd);
+        end = Math.min(Math.max(end, hostStart), hostEnd);
+        if (end < start) { start = Math.min(start, end); end = start; }
+        const wrapper = document.createElement('span');
+        wrapper.className = 'md-inline-run';
+        wrapper.dataset.lineStart = String(start);
+        wrapper.dataset.lineEnd = String(end);
+        run.nodes[0].parentNode.insertBefore(wrapper, run.nodes[0]);
+        run.nodes.forEach((node) => wrapper.appendChild(node));
+      });
+    });
+  }
+
   async function renderMarkdown(root, source, tab, options = {}) {
     const renderToken = Symbol('mdturn-render');
     root.__mdturnRenderToken = renderToken;
     const target = document.createElement('div');
     target.innerHTML = md.render(source || '');
+    adoptBareInlineRuns(target);
     target.querySelectorAll('img[src]').forEach((image) => {
       const src = image.getAttribute('src') || '';
       if (/^(https?:|data:)/i.test(src)) return;
